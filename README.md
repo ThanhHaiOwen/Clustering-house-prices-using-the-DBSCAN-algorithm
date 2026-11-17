@@ -1,271 +1,120 @@
-# Phân cụm giá nhà Seattle sử dụng thuật toán DBSCAN
+# 🏡 Phân Khúc Thị Trường Bất Động Sản Seattle Bằng Thuật Toán DBSCAN
+*(Seattle Housing Market Segmentation & Pricing Analytics using DBSCAN)*
 
-## Giới thiệu
-Dự án này thực hiện phân tích và phân cụm dữ liệu giá nhà tại Seattle, Washington sử dụng thuật toán DBSCAN (Density-Based Spatial Clustering of Applications with Noise). Mục tiêu chính là phân loại các căn nhà thành các nhóm có đặc điểm tương tự về giá cả, diện tích và chất lượng xây dựng, từ đó cung cấp cái nhìn sâu sắc về thị trường bất động sản Seattle.
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.2+-orange.svg)](https://scikit-learn.org)
+[![Folium](https://img.shields.io/badge/Folium-Interactive%20Maps-green.svg)](https://python-visualization.github.io/folium/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-### Mục tiêu dự án
-- Phân tích và hiểu cấu trúc thị trường bất động sản Seattle
-- Xác định các phân khúc giá nhà tự nhiên dựa trên đặc điểm của căn nhà
-- Cung cấp công cụ hỗ trợ định giá và tư vấn bất động sản
-- Phát triển chiến lược kinh doanh cho từng phân khúc thị trường
+Dự án phân tích dữ liệu và phân khúc thị trường bất động sản King County (Seattle, Washington) với hơn **21,000 giao dịch**. Bằng việc áp dụng thuật toán phân cụm dựa trên mật độ **DBSCAN** kết hợp mô hình suy luận **K-Nearest Neighbors (KNN)**, hệ thống tự động nhận diện **6 phân khúc thị trường cốt lõi** và cô lập các bất động sản cá biệt (Outliers) để tối ưu hóa chiến lược định giá và danh mục đầu tư.
 
-### Ý nghĩa thực tiễn
-- **Cho người mua nhà**: Hiểu rõ các phân khúc thị trường và giá trị tương đối của bất động sản
-- **Cho người bán/môi giới**: Định giá chính xác và phát triển chiến lược marketing phù hợp
-- **Cho nhà đầu tư**: Xác định cơ hội đầu tư và phân tích xu hướng thị trường
-- **Cho nhà phát triển**: Định hướng phát triển dự án phù hợp với từng phân khúc
+📄 **Đọc toàn bộ báo cáo phân tích kinh doanh tại:** [BÁO CÁO BUSINESS CASE](BUSINESS_CASE.md)
 
-## Mô tả Dataset
+---
 
-Dataset `kc_house_data.csv` bao gồm thông tin về các căn nhà tại Seattle với các trường dữ liệu sau:
+## 🌟 Điểm Nổi Bật Của Dự Án
 
-| Trường dữ liệu | Mô tả |
-|----------------|--------|
-| id | Mã định danh duy nhất cho mỗi căn nhà |
-| date | Ngày bán căn nhà |
-| price | Giá bán (biến mục tiêu) |
-| bedrooms | Số phòng ngủ |
-| bathrooms | Số phòng tắm |
-| sqft_living | Diện tích sinh hoạt (feet vuông) |
-| sqft_lot | Diện tích lô đất |
-| floors | Số tầng |
-| waterfront | Có view hướng biển (0/1) |
-| view | Chỉ số đánh giá view (0-4) |
-| condition | Tình trạng căn nhà (1-5) |
-| grade | Chất lượng xây dựng (1-13) |
-| sqft_above | Diện tích trên mặt đất |
-| sqft_basement | Diện tích tầng hầm |
-| yr_built | Năm xây dựng |
-| yr_renovated | Năm cải tạo gần nhất |
-| zipcode | Mã bưu chính |
-| lat | Vĩ độ |
-| long | Kinh độ |
-| sqft_living15 | Diện tích sinh hoạt trung bình của 15 căn nhà gần nhất |
-| sqft_lot15 | Diện tích lô đất trung bình của 15 căn nhà gần nhất |
+* **Khám phá phân khúc tự nhiên:** Không ép buộc dữ liệu vào số cụm định trước (như K-Means), DBSCAN tự động tìm ra 6 phân khúc chuẩn dựa trên mật độ thực tế của Giá bán (`price`), Diện tích (`sqft_living`), và Chất lượng xây dựng (`grade`).
+* **Lọc bỏ điểm dị biệt (Noise/Outliers):** Nhận diện chính xác 388 bất động sản bất thường (tỷ lệ 1.81%) có giá đột biến (lên tới \$7.7M) để đưa vào quy trình thẩm định thủ công.
+* **Cơ chế suy luận mẫu mới (Inductive Inference):** Tự xây dựng module `predict_new_sample()` bằng thuật toán K-Nearest Neighbors với cơ chế bỏ phiếu đa số (Majority Voting) để gán nhãn phân khúc cho các căn nhà mới ký gửi.
+* **Trực quan hóa không gian:** Tích hợp bản đồ tương tác `seattle_clusters_map.html` thể hiện sự tương quan mật thiết giữa phân khúc xây dựng và vị trí địa lý (từ vùng bình dân Nam Seattle đến khu nhà giàu Bellevue & Mercer Island).
 
-## Các bước trong Notebook
+---
 
-### 1. Tiền xử lý dữ liệu
-- Kiểm tra và xử lý dữ liệu null
-- Xử lý các dòng trùng lặp và ID trùng
-- Chuyển đổi kiểu dữ liệu phù hợp
-- Phân tích tương quan giữa các features
+## 📊 Tóm Tắt Các Phân Khúc Thị Trường (Market Segments)
 
-### 2. Feature Selection và Engineering
-- Loại bỏ các cột không tương quan nhiều với giá
-- Xử lý các giá trị bất thường (outliers)
-- Log transformation cho các biến bị lệch
-- Sử dụng RobustScaler để chuẩn hóa dữ liệu
+| Cụm | Tên phân khúc đề xuất | Thị phần | Giá trung vị (USD) | Diện tích TB | Đơn giá (\$/sqft) | Grade | Khu vực tiêu biểu |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **1** | Nhà bình dân / Khởi điểm | 9.29% | **\$275,000** | 1,188 sqft | \$271 | 6 | Nam Seattle, Tukwila (98118, 98168) |
+| **0** | Phổ thông trung bình thấp | 41.50% | **\$375,000** | 1,689 sqft | \$252 | 7 | Bắc Seattle, Kirkland (98034, 98115) |
+| **2** | Trung cấp gia đình | 28.18% | **\$510,000** | 2,184 sqft | \$258 | 8 | Redmond, Green Lake (98052, 98103) |
+| **4** | Cao cấp ven đô | 12.13% | **\$720,500** | 2,872 sqft | \$276 | 9 | Sammamish, Bellevue (98074, 98006) |
+| **5** | Dinh thự sang trọng | 5.26% | **\$915,000** | 3,527 sqft | \$307 | 10 | Somerset, Sammamish (98075, 98006) |
+| **3** | Biệt thự siêu cao cấp | 1.83% | **\$1,280,000** | 4,376 sqft | \$342 | 11 | Mercer Island, Downtown Bellevue (98040, 98004) |
+| **-1** | Bất động sản cá biệt (Outlier) | 1.81% | **\$280,000** | 2,312 sqft | \$327 | 1–13 | Nhà giá siêu cao (tới \$7.7M) hoặc đặc thù |
 
-### 3. Phân tích và Lựa chọn Thuật toán
+---
 
-#### So sánh các thuật toán clustering:
+## 📁 Cấu Trúc Dự Án
 
-**K-Means:**
-- Ưu điểm:
-  + Đơn giản, dễ hiểu và triển khai
-  + Hiệu quả với dữ liệu lớn
-  + Clusters có kích thước tương đương nhau
-- Nhược điểm:
-  + Cần xác định trước số clusters
-  + Nhạy cảm với outliers
-  + Chỉ tạo được clusters hình tròn
-  + Không phù hợp với dữ liệu phân bố không đều
-
-**OPTICS:**
-- Ưu điểm:
-  + Không cần xác định số clusters
-  + Phát hiện được clusters có mật độ khác nhau
-  + Xử lý được outliers
-- Nhược điểm:
-  + Phức tạp hơn DBSCAN
-  + Tốn nhiều tài nguyên tính toán
-  + Khó điều chỉnh tham số
-
-**DBSCAN (Được chọn):**
-- Ưu điểm:
-  + Không cần xác định trước số clusters
-  + Phát hiện hiệu quả outliers
-  + Tìm được clusters có hình dạng tự nhiên
-  + Hoạt động tốt với dữ liệu phân bố không đều
-- Nhược điểm:
-  + Nhạy cảm với tham số epsilon và min_samples
-  + Khó xử lý clusters có mật độ rất khác nhau
-  
-#### Lý do chọn DBSCAN:
-1. Phù hợp với đặc điểm dữ liệu bất động sản:
-   - Phân bố giá không đều
-   - Có nhiều outliers (nhà đặc biệt)
-   - Clusters có hình dạng và kích thước đa dạng
-2. Khả năng phát hiện noise giúp loại bỏ các căn nhà đặc biệt
-3. Không cần biết trước số lượng phân khúc thị trường
-4. Kết quả phân cụm có ý nghĩa thực tiễn cao
-
-### 4. Tối ưu hóa Tham số DBSCAN
-
-#### Phương pháp tối ưu hóa
-1. **K-Distance Graph:**
-   - Vẽ biểu đồ khoảng cách K-nearest neighbors
-   - Tìm "elbow point" để xác định epsilon tối ưu
-   - Thực nghiệm với k=4 cho kết quả tốt nhất
-
-2. **Grid Search:**
-   - Thử nghiệm các giá trị epsilon: 0.7 - 1.81
-   - Thử nghiệm min_samples: 100 - 125
-   - Tổng cộng hơn 500 tổ hợp tham số
-
-3. **Đánh giá đa tiêu chí:**
-   - Silhouette Score: Đánh giá độ tách biệt của clusters
-   - Balance Ratio: Đánh giá sự cân bằng kích thước
-   - Noise Ratio: Kiểm soát tỷ lệ điểm nhiễu
-   - Business Logic: Đảm bảo ý nghĩa thực tiễn
-
-#### Tham số tối ưu đạt được:
-- epsilon (eps) = 0.7
-- min_samples = 120
-
-### 5. Kết quả và Đánh giá
-
-#### Chỉ số đánh giá:
-- **Silhouette Score**: 0.321
-  + Thang điểm: -1 đến 1
-  + >0.3: Chấp nhận được
-  + >0.5: Tốt
-  + >0.7: Xuất sắc
-  + Kết quả 0.321 cho thấy phân cụm tương đối tốt
-
-- **Calinski-Harabasz Index**: 7605.998
-  + Càng cao càng tốt
-  + Chỉ số >1000 được coi là rất tốt
-  + Cho thấy clusters phân tách rõ ràng
-
-- **Davies-Bouldin Index**: 6.509
-  + Càng thấp càng tốt
-  + Chỉ số <10 được coi là chấp nhận được
-  + Có thể cải thiện nhưng đủ tốt cho ứng dụng thực tế
-
-- **Balance Ratio**: 22.8x
-  + Tỷ lệ kích thước cluster lớn nhất/nhỏ nhất
-  + Phản ánh thực tế thị trường bất động sản
-  + Có sự chênh lệch nhưng hợp lý
-
-- **Noise Ratio**: 1.8%
-  + Tỷ lệ điểm nhiễu rất thấp
-  + Hầu hết dữ liệu được phân loại thành công
-  + Chỉ số này tốt hơn nhiều so với các nghiên cứu tương tự
-
-#### Độ tin cậy của mô hình:
-- Cross-validation cho kết quả ổn định
-- Phù hợp với kiến thức chuyên môn về thị trường
-- Được xác nhận bởi các chuyên gia bất động sản
-
-## Kết luận và Phân tích Kinh doanh
-
-### Phân khúc thị trường
-Mô hình đã phân chia thị trường thành 6 phân khúc chính:
-1. **Phân khúc giá rẻ cơ bản**: Dưới 300,000 USD
-2. **Phân khúc trung bình thấp**: 300,000 - 500,000 USD
-3. **Phân khúc trung bình cao**: 450,000 - 600,000 USD
-4. **Phân khúc cao cấp**: 600,000 - 1,000,000 USD
-5. **Phân khúc siêu cao cấp**: Trên 1,000,000 USD
-6. **Phân khúc đặc biệt**: Có đặc điểm riêng biệt
-
-### Ứng dụng thực tế
-- Định giá bất động sản dựa trên nhóm tương đồng
-- Phát triển chiến lược marketing cho từng phân khúc
-- Tư vấn đầu tư và phát triển dự án
-- Dự đoán xu hướng giá của từng phân khúc
-
-## Hướng dẫn sử dụng
-
-### 1. Yêu cầu hệ thống
-- Python 3.7 trở lên
-- RAM tối thiểu 8GB
-- Ổ cứng trống tối thiểu 1GB
-
-### 2. Cài đặt môi trường
-
-```bash
-# Tạo môi trường ảo (khuyến nghị)
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-
-# Cài đặt các thư viện cần thiết
-pip install pandas numpy scikit-learn seaborn matplotlib folium jupyter
+```text
+Clustering-house-prices-using-the-DBSCAN-algorithm/
+│
+├── DataMining_Main.ipynb          # Notebook nghiên cứu, thử nghiệm & EDA chi tiết
+├── BUSINESS_CASE.md               # Báo cáo phân tích kinh doanh chuẩn Business Analyst
+├── README.md                      # Tài liệu giới thiệu & hướng dẫn sử dụng dự án
+├── requirements.txt               # Danh sách thư viện phụ thuộc
+├── kc_house_data.csv              # Tập dữ liệu gốc King County Housing
+├── main.py                        # Script thực thi toàn bộ pipeline huấn luyện & xuất báo cáo
+│
+├── src/                           # Mã nguồn module chuẩn hóa
+│   ├── __init__.py                # Khởi tạo package
+│   ├── preprocessing.py           # Làm sạch dữ liệu, Log transform, RobustScaler
+│   ├── dbscan_model.py            # Model DBSCAN & hàm dự đoán mẫu mới (KNN Inference)
+│   └── visualization.py           # Xuất bản đồ tương tác Folium & biểu đồ phân tích
+│
+├── cluster_business_summary.csv   # Bảng tổng hợp số liệu kinh doanh từng cụm
+├── seattle_clusters_map.html      # Bản đồ tương tác vệ tinh Seattle (Mở bằng trình duyệt)
+└── clusters_price_size.png        # Biểu đồ phân bổ Giá vs. Diện tích
 ```
 
-### 3. Chuẩn bị dữ liệu
-1. Tải file `kc_house_data.csv`
-2. Đặt file vào thư mục gốc của dự án
-3. Kiểm tra định dạng dữ liệu phù hợp
+---
 
-### 4. Chạy phân tích
-1. Mở Jupyter Notebook:
+## 🚀 Hướng Dẫn Cài Đặt & Chạy Dự Án
+
+### 1. Khởi tạo môi trường ảo
+
 ```bash
-jupyter notebook
+# Tạo môi trường ảo
+python -m venv .venv
+
+# Kích hoạt môi trường (Windows)
+.venv\Scripts\activate
+
+# Kích hoạt môi trường (Linux/Mac)
+# source .venv/bin/activate
+
+# Cài đặt thư viện
+pip install -r requirements.txt
 ```
-2. Mở file `DataMining_Main.ipynb`
-3. Chạy từng cell theo thứ tự
-4. Xem kết quả phân tích và biểu đồ
 
-### 5. Sử dụng mô hình
+### 2. Chạy pipeline hoàn chỉnh
 
-#### Dự đoán cluster cho nhà mới:
+```bash
+python main.py
+```
+
+Lệnh trên sẽ tự động:
+1. Huấn luyện mô hình DBSCAN ($eps=0.7$, $min\_samples=120$).
+2. Xuất bảng phân tích định lượng kinh doanh ra file `cluster_business_summary.csv`.
+3. Sinh bản đồ tương tác `seattle_clusters_map.html`.
+4. Xuất biểu đồ tương quan `clusters_price_size.png`.
+5. Chạy thử nghiệm hàm dự đoán cho 4 căn nhà mẫu mới.
+
+---
+
+## 💻 Sử Dụng Mô Hình Trong Code
+
+Bạn có thể dễ dàng import và sử dụng hàm dự đoán phân khúc cho căn nhà mới:
+
 ```python
-# Import mô hình
-from dbscan_model import predict_new_sample
+from src.dbscan_model import predict_new_sample
 
-# Dự đoán cluster
-cluster, confidence = predict_new_sample(
-    price=500000,        # Giá nhà (USD)
-    sqft_living=2000,    # Diện tích (sq ft)
-    grade=8              # Chất lượng (1-13)
+# Dự đoán phân khúc cho một căn nhà mới ký gửi
+cluster_id, confidence = predict_new_sample(
+    price=450000,       # Giá nhà (USD)
+    sqft_living=2000,   # Diện tích sinh hoạt (sqft)
+    grade=8             # Chất lượng xây dựng (1-13)
 )
 
-print(f"Cluster: {cluster}")
-print(f"Confidence: {confidence:.2%}")
+print(f"Căn nhà thuộc Cluster: {cluster_id}")
+print(f"Độ tin cậy của mô hình: {confidence:.1%}")
 ```
 
-#### Ví dụ kết quả:
-```python
-# Nhà giá rẻ
-predict_new_sample(200000, 1200, 6)  # Cluster 0
+---
 
-# Nhà trung cấp
-predict_new_sample(450000, 2000, 8)  # Cluster 2
-
-# Nhà cao cấp
-predict_new_sample(800000, 3500, 10) # Cluster 3
-```
-
-## Cấu trúc dự án
-```
-DBSCAN/
-│
-├── DataMining_Main.ipynb     # Notebook chính
-├── kc_house_data.csv         # Dataset
-├── README.md                 # Tài liệu hướng dẫn
-│
-└── src/
-    ├── __init__.py
-    ├── preprocessing.py      # Xử lý dữ liệu
-    ├── dbscan_model.py      # Mô hình DBSCAN
-    └── visualization.py      # Tạo biểu đồ
-```
-
-## Thư viện sử dụng
-
-### Core Libraries
-- **pandas (1.5.0+)**: Xử lý dữ liệu
-- **numpy (1.21.0+)**: Tính toán số học
-- **scikit-learn (1.0.0+)**: Thuật toán DBSCAN
-
-### Visualization
-- **matplotlib (3.5.0+)**: Vẽ biểu đồ cơ bản
-- **seaborn (0.11.0+)**: Biểu đồ thống kê nâng cao
-- **folium (0.12.0+)**: Hiển thị bản đồ
-
-### Development
-- **jupyter (1.0.0+)**: Môi trường phát triển
-- **python-dotenv (0.19.0+)**: Quản lý biến môi trường
+## 📈 Trực Quan Hóa Tương Tác
+Dự án cung cấp file **`seattle_clusters_map.html`**. Bạn chỉ cần mở trực tiếp file này bằng bất kỳ trình duyệt nào (Chrome, Edge, Firefox) để:
+* Khám phá tọa độ từng căn nhà trên bản đồ địa lý Seattle.
+* Xem phân bố màu sắc theo từng phân khúc.
+* Nhấp vào từng điểm để xem chi tiết: Giá bán, Diện tích, Grade, và Mã Zipcode.
