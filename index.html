@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SeattleGeoBI — Hệ Thống Phân Khúc Thị Trường & Định Giá Bất Động Sản (DBSCAN)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #09090b;
+      --primary-hover: #27272a;
+      --primary-subtle: #f4f4f5;
+      --emerald: #047857;
+      --emerald-bg: #ecfdf5;
+      --emerald-border: #a7f3d0;
+      --amber: #b45309;
+      --amber-bg: #fffbeb;
+      --amber-border: #fde68a;
+      --crimson: #be123c;
+      --crimson-bg: #fff1f2;
+      --crimson-border: #fecdd3;
+      --bg-main: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-main: #09090b;
+      --text-secondary: #3f3f46;
+      --text-muted: #71717a;
+      --border: #e4e4e7;
+      --border-strong: #d4d4d8;
+      --shadow-xs: 0 1px 2px 0 rgba(9, 9, 11, 0.03);
+      --shadow-md: 0 4px 12px -2px rgba(9, 9, 11, 0.07);
+      --radius-lg: 10px;
+      --radius-md: 7px;
+      --radius-sm: 5px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Executive Navbar */
+    .navbar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .navbar-inner {
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 0.75rem 1.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-box {
+      width: 34px;
+      height: 34px;
+      border-radius: 7px;
+      background: var(--primary);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .brand-title {
+      font-size: 1.02rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      display: block;
+      line-height: 1.15;
+    }
+
+    .brand-sub {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: block;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+    }
+
+    .nav-btn {
+      padding: 0.5rem 0.9rem;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      background: transparent;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .nav-btn:hover {
+      color: var(--text-main);
+      background: var(--primary-subtle);
+    }
+
+    .nav-btn.active {
+      color: var(--text-main);
+      background: var(--primary-subtle);
+      border-color: var(--border);
+      font-weight: 600;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: #fafafa;
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald);
+    }
+
+    /* Main Container */
+    .wrapper {
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 2rem 1.75rem 4rem 1.75rem;
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Executive Header */
+    .exec-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 1.5rem;
+      padding-bottom: 1.5rem;
+      margin-bottom: 1.75rem;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .eyebrow {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .page-title {
+      font-size: 1.65rem;
+      font-weight: 700;
+      margin: 0 0 0.35rem 0;
+      letter-spacing: -0.025em;
+    }
+
+    .page-sub {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.58rem 1.05rem;
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: #ffffff;
+      color: var(--text-main);
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .btn-secondary:hover {
+      background: var(--primary-subtle);
+    }
+
+    /* KPI Strip */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.75rem;
+    }
+
+    @media (max-width: 1024px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.35rem;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .kpi-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.55rem;
+    }
+
+    .kpi-val {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 0.5rem;
+    }
+
+    .kpi-foot {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 0.55rem;
+      border-top: 1px solid #f4f4f5;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    .delta-pos { color: var(--emerald); font-weight: 600; }
+    .delta-neg { color: var(--crimson); font-weight: 600; }
+
+    /* Charts Row */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (max-width: 960px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.35rem;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid #f4f4f5;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .badge-tag {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      background: var(--primary-subtle);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .chart-box {
+      height: 300px;
+      position: relative;
+    }
+
+    /* Filter Bar & Data Table */
+    .toolbar-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-inputs {
+      display: flex;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .input, .select {
+      padding: 0.52rem 0.75rem;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: 0.85rem;
+      background: #ffffff;
+      color: var(--text-main);
+    }
+
+    .input:focus, .select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .table-wrap {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow-x: auto;
+      box-shadow: var(--shadow-xs);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    thead {
+      background: #fafafa;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      padding: 0.75rem 1rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    td {
+      padding: 0.85rem 1rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      border-bottom: 1px solid #f4f4f5;
+      font-variant-numeric: tabular-nums;
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #fafafa; }
+
+    .cluster-chip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      display: inline-block;
+      border: 1px solid var(--border);
+      background: #f4f4f5;
+      color: var(--text-main);
+    }
+
+    .cluster-chip.outlier {
+      background: var(--crimson-bg);
+      color: var(--crimson);
+      border-color: var(--crimson-border);
+    }
+
+    .cluster-chip.luxury {
+      background: var(--emerald-bg);
+      color: var(--emerald);
+      border-color: var(--emerald-border);
+    }
+
+    .btn-row {
+      padding: 0.35rem 0.65rem;
+      font-size: 0.76rem;
+      font-weight: 600;
+      border: 1px solid var(--border-strong);
+      background: #ffffff;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-row:hover {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+
+    /* Map Container */
+    .map-frame-container {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      height: 640px;
+      box-shadow: var(--shadow-xs);
+      position: relative;
+    }
+
+    .map-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Valuation Simulator Layout */
+    .sim-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .sim-layout { grid-template-columns: 1fr; }
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 0.35rem;
+    }
+
+    .verdict-banner {
+      padding: 1.15rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      margin-bottom: 1.25rem;
+    }
+
+    .verdict-banner.fair {
+      background: var(--emerald-bg);
+      border-color: var(--emerald-border);
+      color: #065f46;
+    }
+
+    .verdict-banner.outlier {
+      background: var(--crimson-bg);
+      border-color: var(--crimson-border);
+      color: #9f1239;
+    }
+
+    .verdict-banner.undervalued {
+      background: var(--amber-bg);
+      border-color: var(--amber-border);
+      color: #92400e;
+    }
+
+    .sim-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .sim-kpi-box {
+      background: #fafafa;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.9rem;
+    }
+
+    .sim-kpi-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .sim-kpi-num {
+      font-size: 1.2rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-main);
+    }
+
+    .preset-bar {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.15rem;
+    }
+
+    .preset-btn {
+      font-size: 0.74rem;
+      padding: 0.3rem 0.6rem;
+      border: 1px solid var(--border);
+      background: #fafafa;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .preset-btn:hover {
+      border-color: var(--primary);
+      color: var(--text-main);
+      background: #ffffff;
+    }
+
+    /* Business Case Cards */
+    .bc-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      margin-bottom: 1.75rem;
+    }
+
+    @media (max-width: 900px) {
+      .bc-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="navbar">
+    <div class="navbar-inner">
+      <a href="#" class="brand" onclick="switchTab('overview'); return false;">
+        <div class="brand-box">DB</div>
+        <div>
+          <span class="brand-title">SeattleGeoBI</span>
+          <span class="brand-sub">Geospatial Clustering & Pricing Intelligence</span>
+        </div>
+      </a>
+
+      <nav class="nav-tabs">
+        <button class="nav-btn active" id="tab-btn-overview" onclick="switchTab('overview')">
+          1. Tổng Quan & Ma Trận Phân Khúc
+        </button>
+        <button class="nav-btn" id="tab-btn-map" onclick="switchTab('map')">
+          2. Bản Đồ Không Gian (Folium Map)
+        </button>
+        <button class="nav-btn" id="tab-btn-auditor" onclick="switchTab('auditor')">
+          3. Công Cụ Thẩm Định & Định Giá
+        </button>
+        <button class="nav-btn" id="tab-btn-business" onclick="switchTab('business')">
+          4. Báo Cáo Nghiệp Vụ (Business Case)
+        </button>
+      </nav>
+
+      <div class="status-pill">
+        <span class="dot"></span>
+        <span>21,436 Hồ Sơ King County • DBSCAN Active</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrapper">
+
+    <!-- =================================================================
+         TAB 1: EXECUTIVE OVERVIEW & SEGMENT MATRIX
+         ================================================================= -->
+    <section class="tab-pane active" id="pane-overview">
+      <div class="exec-header">
+        <div>
+          <div class="eyebrow">PHÂN TÍCH PHÂN KHÚC THỊ TRƯỜNG BẤT ĐỘNG SẢN THEO MẬT ĐỘ KHÔNG GIAN (DBSCAN)</div>
+          <h1 class="page-title">Báo Cáo Điều Hành Phân Khúc Thị Trường & Kiểm Toán Giá Seattle</h1>
+          <p class="page-sub">
+            Bóc tách 21,436 giao dịch thực tế tại King County (Seattle) thành 6 phân khúc thị trường tự nhiên và cô lập nhóm tài sản định giá bất thường (Outliers)
+          </p>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="exportSummaryCSV()">
+            Xuất Ma Trận Phân Khúc (CSV)
+          </button>
+          <button class="btn btn-primary" onclick="switchTab('map')">
+            Mở Bản Đồ Nhiệt Tương Tác →
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">TỔNG QUY MÔ GIAO DỊCH</div>
+          <div class="kpi-val">21,436</div>
+          <div class="kpi-foot">
+            <span>Thị trường: King County, WA</span>
+            <span class="delta-pos">100% Đã làm sạch</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">PHÂN KHÚC CỐT LÕI (CORE CLUSTERS)</div>
+          <div class="kpi-val">6 Cụm</div>
+          <div class="kpi-foot">
+            <span>Chiếm 98.19% toàn thị trường</span>
+            <span class="delta-pos">Silhouette: 0.48</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">BẤT ĐỘNG SẢN CÁ BIỆT (OUTLIERS)</div>
+          <div class="kpi-val">388 Căn</div>
+          <div class="kpi-foot">
+            <span>Lệch Mean/Median: +210.3%</span>
+            <span class="delta-neg">Cần thẩm định riêng</span>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">ĐƠN GIÁ BÌNH QUÂN ($ / SQFT)</div>
+          <div class="kpi-val">$264.15</div>
+          <div class="kpi-foot">
+            <span>Biên độ: $251.5 – $341.9/sqft</span>
+            <span class="delta-pos">Chuẩn định giá vùng</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Interactive Charts -->
+      <div class="charts-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">So Sánh Giá Trung Vị (Median) vs Giá Trung Bình (Mean) Theo Cụm ($ USD)</h3>
+            <span class="badge-tag">Phát hiện độ lệch Outlier</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="priceChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Đơn Giá Trung Bình Trên Mỗi Sqft ($/Sqft) & Cấp Công Trình</h3>
+            <span class="badge-tag">Unit Economics</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="sqftChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Segment Matrix Table -->
+      <div class="toolbar-row">
+        <div>
+          <h2 style="font-size: 1.08rem; font-weight: 700; margin: 0;">Ma Trận 7 Phân Khúc Thị Trường (DBSCAN Segmentation Matrix)</h2>
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">
+            Lọc theo nhóm phân khúc hoặc tra cứu mã vùng Zipcode để xem chỉ số định giá chuẩn
+          </p>
+        </div>
+
+        <div class="filter-inputs">
+          <input
+            type="text"
+            id="zipSearchInput"
+            class="input"
+            placeholder="Tìm theo Zipcode (VD: 98006, 98115)..."
+            oninput="renderSegmentTable()"
+          />
+          <select id="tierFilterSelect" class="select" onchange="renderSegmentTable()">
+            <option value="ALL">Tất cả phân khúc (7 nhóm)</option>
+            <option value="MASS">Phân khúc Phổ thông & Trung cấp (Cluster 0, 1, 2)</option>
+            <option value="LUXURY">Phân khúc Cao cấp & Dinh thự (Cluster 3, 4, 5)</option>
+            <option value="OUTLIER">Nhóm Ngoại lai cần kiểm toán (Cluster -1)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Mã Cụm</th>
+              <th>Tên Phân Khúc Nghiệp Vụ</th>
+              <th>Số Lượng (Thị Phần)</th>
+              <th>Giá Trung Vị (Median)</th>
+              <th>Giá Trung Bình (Mean)</th>
+              <th>Diện Tích & Đơn Giá</th>
+              <th>Khu Vực Zipcode Trọng Điểm</th>
+              <th style="text-align: right;">Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="segmentTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         TAB 2: INTERACTIVE FOLIUM GEOSPATIAL MAP
+         ================================================================= -->
+    <section class="tab-pane" id="pane-map">
+      <div class="exec-header">
+        <div>
+          <div class="eyebrow">TRỰC QUAN HÓA KHÔNG GIAN ĐỊA LÝ (FOLIUM LEAFLET ENGINE)</div>
+          <h1 class="page-title">Bản Đồ Phân Bố Cụm Giá Nhà & Tâm Điểm Bất Thường Tại Seattle</h1>
+          <p class="page-sub">
+            Tương tác trực tiếp (Zoom, Pan, Click vào từng điểm giao dịch và tâm cụm) để khảo sát ranh giới giá trị thực tế vượt qua địa giới hành chính
+          </p>
+        </div>
+        <div class="btn-group">
+          <a href="seattle_clusters_map.html" target="_blank" class="btn btn-secondary">
+            Mở Toàn Màn Hình Ở Tab Mới ↗
+          </a>
+          <button class="btn btn-primary" onclick="switchTab('auditor')">
+            Chuyển Sang Công Cụ Thẩm Định Giá →
+          </button>
+        </div>
+      </div>
+
+      <div class="map-frame-container">
+        <iframe src="seattle_clusters_map.html" class="map-iframe" title="Seattle DBSCAN Clusters Map"></iframe>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         TAB 3: INTERACTIVE VALUATION & OUTLIER AUDITOR
+         ================================================================= -->
+    <section class="tab-pane" id="pane-auditor">
+      <div class="exec-header">
+        <div>
+          <div class="eyebrow">CÔNG CỤ HỖ TRỢ RA QUYẾT ĐỊNH ĐỊNH GIÁ & KIỂM TOÁN RỦI RO</div>
+          <h1 class="page-title">Bộ Thẩm Định Giá Trị Bất Động Sản & Phát Hiện Ngoại Lai (Valuation Auditor)</h1>
+          <p class="page-sub">
+            Đối chiếu thông số căn nhà với mặt bằng chuẩn của cụm DBSCAN tương ứng để phát hiện tài sản định giá quá cao (Overvalued) hoặc cơ hội đầu tư (Undervalued)
+          </p>
+        </div>
+      </div>
+
+      <div class="sim-layout">
+        <!-- Input Form -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Thông Số Bất Động Sản Cần Thẩm Định</h3>
+            <span class="badge-tag">Input Parameters</span>
+          </div>
+
+          <div style="margin-bottom: 0.9rem;">
+            <span class="form-label">Chạy thử nhanh 4 hồ sơ thực tế:</span>
+            <div class="preset-bar">
+              <button class="preset-btn" onclick="loadPropertyPreset(1630, 7, '0', 380000)">
+                Nhà Phổ Thông Chuẩn Giá ($380k)
+              </button>
+              <button class="preset-btn" onclick="loadPropertyPreset(2820, 9, '4', 610000)">
+                Cơ Hội Đầu Tư Giá Rẻ ($610k)
+              </button>
+              <button class="preset-btn" onclick="loadPropertyPreset(4260, 11, '3', 1320000)">
+                Biệt Thự Bellevue ($1.32M)
+              </button>
+              <button class="preset-btn" onclick="loadPropertyPreset(1450, 7, '-1', 980000)">
+                Cảnh Báo Outlier Giá Ảo ($980k)
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Khu Vực & Phân Khúc Tham Chiếu:</label>
+            <select id="auditCluster" class="select" style="width: 100%;" onchange="runValuationAudit()">
+              <option value="0">Cluster 0 — Khu vực Phổ thông Bắc/Trung tâm (Zip: 98034, 98115, 98133)</option>
+              <option value="1">Cluster 1 — Khu vực Khởi điểm Nam Seattle (Zip: 98118, 98168, 98106)</option>
+              <option value="2">Cluster 2 — Khu vực Gia đình Trung cấp Redmond/Fremont (Zip: 98052, 98103)</option>
+              <option value="4">Cluster 4 — Khu vực Cao cấp Ven đô Sammamish (Zip: 98074, 98052, 98006)</option>
+              <option value="5">Cluster 5 — Khu vực Dinh thự Sang trọng (Zip: 98075, 98074, 98006)</option>
+              <option value="3">Cluster 3 — Khu Biệt thự Siêu cao cấp Bellevue/Mercer (Zip: 98004, 98040)</option>
+              <option value="-1">Cluster -1 — Vùng Rìa / Bất động sản Cá biệt (Outlier Zone)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Diện Tích Sàn Sử Dụng (Sqft Living):</label>
+            <input type="number" id="auditSqft" class="input" style="width: 100%;" value="2150" min="400" max="12000" step="50" oninput="runValuationAudit()" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Cấp Chất Lượng Xây Dựng (King County Grade 6 – 12):</label>
+            <select id="auditGrade" class="select" style="width: 100%;" onchange="runValuationAudit()">
+              <option value="6">Grade 6 — Tiêu chuẩn cơ bản (Economy)</option>
+              <option value="7">Grade 7 — Phổ thông trung bình (Average)</option>
+              <option value="8" selected>Grade 8 — Khá tốt (Good Family Home)</option>
+              <option value="9">Grade 9 — Cao cấp (Better Architectural Design)</option>
+              <option value="10">Grade 10 — Sang trọng (High Quality Custom)</option>
+              <option value="11">Grade 11 — Biệt thự hạng sang (Luxury Mansion)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mức Giá Chào Bán Đang Xét Duyệt ($ USD):</label>
+            <input type="number" id="auditAskingPrice" class="input" style="width: 100%;" value="525000" min="75000" max="8000000" step="10000" oninput="runValuationAudit()" />
+          </div>
+        </div>
+
+        <!-- Audit Output -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Kết Quả Thẩm Định Định Giá & Khuyến Nghị Đầu Tư</h3>
+            <span class="badge-tag" id="auditBadgeTag">Đang phân tích</span>
+          </div>
+
+          <div id="auditVerdictBanner" class="verdict-banner fair">
+            <div style="font-weight: 700; font-size: 0.98rem; margin-bottom: 0.3rem;" id="auditVerdictTitle"></div>
+            <div style="font-size: 0.85rem; line-height: 1.5;" id="auditVerdictDesc"></div>
+          </div>
+
+          <div class="sim-kpi-row">
+            <div class="sim-kpi-box">
+              <div class="sim-kpi-title">GIÁ HỢP LÝ THEO CỤM</div>
+              <div class="sim-kpi-num" id="auditFairValue">$0</div>
+            </div>
+            <div class="sim-kpi-box">
+              <div class="sim-kpi-title">ĐƠN GIÁ CHÀO BÁN</div>
+              <div class="sim-kpi-num" id="auditUserPps">$0/sqft</div>
+            </div>
+            <div class="sim-kpi-box">
+              <div class="sim-kpi-title">CHÊNH LỆCH SO VỚI CHUẨN</div>
+              <div class="sim-kpi-num" id="auditSpreadPct">0%</div>
+            </div>
+          </div>
+
+          <div style="background: #fafafa; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.1rem;">
+            <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.55rem;">
+              Khuyến Nghị Nghiệp Vụ Cho Bộ Phận Thẩm Định / Kinh Doanh:
+            </div>
+            <ul id="auditActionList" style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.65;"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================================
+         TAB 4: BUSINESS CASE & STRATEGIC RECOMMENDATIONS
+         ================================================================= -->
+    <section class="tab-pane" id="pane-business">
+      <div class="exec-header">
+        <div>
+          <div class="eyebrow">TÀI LIỆU PHÂN TÍCH NGHIỆP VỤ (BA DELIVERABLE)</div>
+          <h1 class="page-title">Business Case: Ứng Dụng Phân Cụm Mật Độ DBSCAN Trong Định Giá Bất Động Sản</h1>
+          <p class="page-sub">
+            Giải quyết bài toán định giá sai lệch do ranh giới Zipcode cứng nhắc và tự động hóa quy trình kiểm soát rủi ro thẩm định giá
+          </p>
+        </div>
+      </div>
+
+      <div class="bc-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">1. Vấn Đề Của Cách Chia Zipcode Cũ</h3>
+            <span class="badge-tag">As-Is Problem</span>
+          </div>
+          <p style="font-size: 0.86rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            Các hệ thống ERP/Bất động sản truyền thống chia bảng giá theo mã bưu chính (Zipcode). Tuy nhiên tại Seattle, cùng một mã Zipcode <strong>98006</strong> vừa có nhà phổ thông ($380k) vừa có biệt thự ven hồ ($1.48M). Tính trung bình cộng theo Zipcode gây sai lệch định giá tới <strong>±35%</strong>.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">2. Giải Pháp Phân Cụm DBSCAN</h3>
+            <span class="badge-tag">To-Be Solution</span>
+          </div>
+          <p style="font-size: 0.86rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            Kết hợp tọa độ không gian (Latitude/Longitude) với chuẩn hóa <code>Log-Price</code> và diện tích để gom 21,436 căn nhà thành <strong>6 cụm mật độ thực tế</strong>. Đặc biệt, DBSCAN tự động bóc tách <strong>388 căn ngoại lai (Cluster -1)</strong> mà không làm nhiễu mặt bằng giá chung.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">3. Giá Trị Mang Lại Cho Doanh Nghiệp</h3>
+            <span class="badge-tag">Business Impact</span>
+          </div>
+          <p style="font-size: 0.86rem; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+            • <strong>Bộ phận Môi giới & Định giá:</strong> Định giá sát thực tế từng cụm vi mô ($251 – $342/sqft).<br/>
+            • <strong>Ngân hàng & Thẩm định tín dụng:</strong> Tự động chặn luồng phê duyệt tự động đối với 1.81% hồ sơ thuộc nhóm Outlier để thẩm định viên kiểm tra thực địa.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Biểu Đồ Phân Bố Tương Quan Giữa Diện Tích Sàn & Giá Trị Theo Cụm DBSCAN</h3>
+          <span class="badge-tag">Model Artifact</span>
+        </div>
+        <div style="text-align: center; padding: 1rem 0;">
+          <img src="clusters_price_size.png" alt="DBSCAN Price vs Size Clusters" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border);" />
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Dữ liệu thực tế trích xuất từ cluster_business_summary.csv (21,436 bản ghi King County)
+    const CLUSTER_DATA = [
+      {
+        cluster: 0,
+        tier: "MASS",
+        segment_name: "Nhà phổ thông trung bình thấp (Grade 7)",
+        count: 8895,
+        market_share_pct: 41.50,
+        price_median: 375000,
+        price_mean: 401858,
+        sqft_median: 1630,
+        price_per_sqft: 251.55,
+        grade: 7,
+        top_zipcodes: "98034 (355), 98115 (354), 98133 (305)",
+        strategy: "Định giá tự động theo khung chuẩn (Auto-Appraisal)"
+      },
+      {
+        cluster: 2,
+        tier: "MASS",
+        segment_name: "Nhà trung cấp gia đình (Grade 8)",
+        count: 6040,
+        market_share_pct: 28.18,
+        price_median: 510000,
+        price_mean: 541477,
+        sqft_median: 2150,
+        price_per_sqft: 257.74,
+        grade: 8,
+        top_zipcodes: "98052 (237), 98103 (219), 98023 (180)",
+        strategy: "Phân khúc thanh khoản cao nhất cho gia đình trẻ"
+      },
+      {
+        cluster: 4,
+        tier: "LUXURY",
+        segment_name: "Nhà cao cấp ven đô (Grade 9)",
+        count: 2601,
+        market_share_pct: 12.13,
+        price_median: 720500,
+        price_mean: 774099,
+        sqft_median: 2820,
+        price_per_sqft: 275.61,
+        grade: 9,
+        top_zipcodes: "98074 (141), 98052 (133), 98006 (114)",
+        strategy: "Cộng biên độ 8-12% cho vị trí gần cụm công nghệ Redmond"
+      },
+      {
+        cluster: 1,
+        tier: "MASS",
+        segment_name: "Nhà bình dân / Khởi điểm (Grade 6)",
+        count: 1992,
+        market_share_pct: 9.29,
+        price_median: 275026,
+        price_mean: 301038,
+        sqft_median: 1120,
+        price_per_sqft: 270.93,
+        grade: 6,
+        top_zipcodes: "98118 (151), 98168 (115), 98106 (102)",
+        strategy: "Phù hợp gói vay mua nhà lần đầu & cải tạo cho thuê"
+      },
+      {
+        cluster: 5,
+        tier: "LUXURY",
+        segment_name: "Dinh thự sang trọng (Grade 10)",
+        count: 1127,
+        market_share_pct: 5.26,
+        price_median: 915000,
+        price_mean: 1072845,
+        sqft_median: 3450,
+        price_per_sqft: 307.09,
+        grade: 10,
+        top_zipcodes: "98075 (120), 98074 (80), 98006 (73)",
+        strategy: "Định giá kèm hệ số cảnh quan (View) & kiến trúc"
+      },
+      {
+        cluster: 3,
+        tier: "LUXURY",
+        segment_name: "Biệt thự siêu cao cấp (Grade 11)",
+        count: 393,
+        market_share_pct: 1.83,
+        price_median: 1280000,
+        price_mean: 1481901,
+        sqft_median: 4260,
+        price_per_sqft: 341.93,
+        grade: 11,
+        top_zipcodes: "98006 (35), 98040 (31), 98004 (30)",
+        strategy: "Thẩm định VIP dành cho tài sản triệu đô (Bellevue/Mercer)"
+      },
+      {
+        cluster: -1,
+        tier: "OUTLIER",
+        segment_name: "Nhiễu / Bất động sản cá biệt (Outlier)",
+        count: 388,
+        market_share_pct: 1.81,
+        price_median: 280000,
+        price_mean: 868931,
+        sqft_median: 1070,
+        price_per_sqft: 327.44,
+        grade: 7,
+        top_zipcodes: "98056 (32), 98006 (24), 98055 (13)",
+        strategy: "CẢNH BÁO: Bắt buộc kiểm toán viên thẩm định thủ công"
+      }
+    ];
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('pane-' + tabId).classList.add('active');
+      document.getElementById('tab-btn-' + tabId).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderSegmentTable() {
+      const zipQuery = (document.getElementById('zipSearchInput').value || '').trim().toLowerCase();
+      const tierFilter = document.getElementById('tierFilterSelect').value;
+      const tbody = document.getElementById('segmentTableBody');
+
+      const filtered = CLUSTER_DATA.filter(item => {
+        if (tierFilter !== 'ALL' && item.tier !== tierFilter) return false;
+        if (zipQuery && !item.top_zipcodes.toLowerCase().includes(zipQuery) && !item.segment_name.toLowerCase().includes(zipQuery)) {
+          return false;
+        }
+        return true;
+      });
+
+      tbody.innerHTML = filtered.map(item => {
+        let chipClass = 'cluster-chip';
+        if (item.cluster === -1) chipClass += ' outlier';
+        else if (item.tier === 'LUXURY') chipClass += ' luxury';
+
+        const label = item.cluster === -1 ? 'Outlier (-1)' : `Cluster #${item.cluster}`;
+        return `
+          <tr>
+            <td><span class="${chipClass}">${label}</span></td>
+            <td>
+              <div style="font-weight: 700; color: #09090b; margin-bottom: 0.2rem;">${item.segment_name}</div>
+              <div style="font-size: 0.78rem; color: #71717a;">${item.strategy}</div>
+            </td>
+            <td>
+              <strong>${item.count.toLocaleString('en-US')} căn</strong>
+              <div style="font-size: 0.78rem; color: #71717a;">${item.market_share_pct}% thị phần</div>
+            </td>
+            <td style="font-weight: 700;">$${item.price_median.toLocaleString('en-US')}</td>
+            <td>$${item.price_mean.toLocaleString('en-US')}</td>
+            <td>
+              <div><strong>$${item.price_per_sqft}/sqft</strong></div>
+              <div style="font-size: 0.78rem; color: #71717a;">TB: ${item.sqft_median.toLocaleString('en-US')} sqft</div>
+            </td>
+            <td style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;">${item.top_zipcodes}</td>
+            <td style="text-align: right;">
+              <button class="btn-row" onclick="jumpToAudit('${item.cluster}', ${item.sqft_median}, ${item.grade}, ${item.price_median})">
+                Thẩm định cụm này →
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function jumpToAudit(clusterId, sqft, grade, price) {
+      document.getElementById('auditCluster').value = String(clusterId);
+      document.getElementById('auditSqft').value = sqft;
+      document.getElementById('auditGrade').value = String(grade);
+      document.getElementById('auditAskingPrice').value = price;
+      runValuationAudit();
+      switchTab('auditor');
+    }
+
+    function loadPropertyPreset(sqft, grade, clusterId, askingPrice) {
+      document.getElementById('auditCluster').value = String(clusterId);
+      document.getElementById('auditSqft').value = sqft;
+      document.getElementById('auditGrade').value = String(grade);
+      document.getElementById('auditAskingPrice').value = askingPrice;
+      runValuationAudit();
+    }
+
+    function runValuationAudit() {
+      const clusterId = parseInt(document.getElementById('auditCluster').value, 10);
+      const sqft = parseFloat(document.getElementById('auditSqft').value) || 2000;
+      const grade = parseInt(document.getElementById('auditGrade').value, 10) || 7;
+      const asking = parseFloat(document.getElementById('auditAskingPrice').value) || 500000;
+
+      const clusterObj = CLUSTER_DATA.find(c => c.cluster === clusterId) || CLUSTER_DATA[0];
+
+      // Tính giá hợp lý dựa trên đơn giá chuẩn của cụm + điều chỉnh cấp công trình (Grade)
+      const gradeMultiplier = 1 + (grade - clusterObj.grade) * 0.085;
+      const fairPrice = Math.round(sqft * clusterObj.price_per_sqft * Math.max(0.75, gradeMultiplier));
+      const userPps = Math.round(asking / Math.max(1, sqft));
+      const spreadPct = Number((((asking - fairPrice) / fairPrice) * 100).toFixed(1));
+
+      document.getElementById('auditFairValue').textContent = '$' + fairPrice.toLocaleString('en-US');
+      document.getElementById('auditUserPps').textContent = '$' + userPps.toLocaleString('en-US') + '/sqft';
+      document.getElementById('auditSpreadPct').textContent = (spreadPct > 0 ? '+' : '') + spreadPct + '%';
+
+      const banner = document.getElementById('auditVerdictBanner');
+      const title = document.getElementById('auditVerdictTitle');
+      const desc = document.getElementById('auditVerdictDesc');
+      const badge = document.getElementById('auditBadgeTag');
+      const actions = document.getElementById('auditActionList');
+
+      if (clusterId === -1 || Math.abs(spreadPct) > 25) {
+        banner.className = 'verdict-banner outlier';
+        badge.textContent = 'CẢNH BÁO OUTLIER / LỆCH CHUẨN';
+        title.textContent = 'CẢNH BÁO KIỂM TOÁN: Tài Sản Lệch Khung Định Giá Cụm (' + (spreadPct > 0 ? '+' : '') + spreadPct + '%)';
+        desc.textContent = `Mức giá chào bán ($${asking.toLocaleString('en-US')}) chênh lệch quá lớn so với giá trị chuẩn của phân khúc (${clusterObj.segment_name}: ~$${fairPrice.toLocaleString('en-US')}). Cần chuyển hồ sơ sang quy trình thẩm định thực địa.`;
+        actions.innerHTML = `
+          <li><strong>Chặn phê duyệt tự động:</strong> Không áp dụng định giá tự động (AVM) cho hồ sơ này để tránh rủi ro tín dụng.</li>
+          <li><strong>Kiểm tra yếu tố đặc thù:</strong> Xác minh xem bất động sản có mặt tiền hồ Washington (Waterfront) hoặc diện tích đất lớn bất thường hay không.</li>
+          <li><strong>Đề xuất đàm phán:</strong> Mức giá mục tiêu an toàn nằm trong biên độ <strong>$${Math.round(fairPrice * 0.95).toLocaleString('en-US')} – $${Math.round(fairPrice * 1.08).toLocaleString('en-US')}</strong>.</li>
+        `;
+      } else if (spreadPct <= -10) {
+        banner.className = 'verdict-banner undervalued';
+        badge.textContent = 'CƠ HỘI ĐẦU TƯ (UNDERVALUED)';
+        title.textContent = 'ĐỊNH GIÁ HẤP DẪN: Thấp Hơn Mặt Bằng Cụm ' + Math.abs(spreadPct) + '%';
+        desc.textContent = `Tài sản đang được chào bán ở mức $${userPps}/sqft, thấp hơn đáng kể so với mặt bằng chuẩn của ${clusterObj.segment_name} ($${clusterObj.price_per_sqft}/sqft).`;
+        actions.innerHTML = `
+          <li><strong>Ưu tiên giải ngân / Mua vào:</strong> Biên độ an toàn vốn đạt <strong>$${(fairPrice - asking).toLocaleString('en-US')}</strong> so với giá trị hợp lý của cụm.</li>
+          <li><strong>Kiểm tra kỹ thuật:</strong> Rà soát năm xây dựng và chi phí cải tạo nội thất trước khi chốt giao dịch.</li>
+        `;
+      } else {
+        banner.className = 'verdict-banner fair';
+        badge.textContent = 'ĐẠT CHUẨN THỊ TRƯỜNG';
+        title.textContent = 'ĐỊNH GIÁ HỢP LÝ (FAIR MARKET VALUE): Khớp Với Phân Khúc Cụm';
+        desc.textContent = `Mức giá chào bán nằm trong biên độ chuẩn (±10%) của phân khúc ${clusterObj.segment_name} tại khu vực ${clusterObj.top_zipcodes}.`;
+        actions.innerHTML = `
+          <li><strong>Phê duyệt nhanh (Fast-Track):</strong> Hồ sơ đủ điều kiện thông qua luồng định giá tự động trên hệ thống ERP/CRM.</li>
+          <li><strong>Thanh khoản dự kiến:</strong> Cao — thuộc nhóm chiếm ${clusterObj.market_share_pct}% tổng lượng giao dịch tại Seattle.</li>
+        `;
+      }
+    }
+
+    function exportSummaryCSV() {
+      const headers = ["ClusterID", "SegmentName", "Count", "MarketShare(%)", "MedianPrice($)", "MeanPrice($)", "MedianSqft", "PricePerSqft($)", "Grade", "TopZipcodes"];
+      const rows = CLUSTER_DATA.map(c => [
+        c.cluster,
+        `"${c.segment_name}"`,
+        c.count,
+        c.market_share_pct,
+        c.price_median,
+        c.price_mean,
+        c.sqft_median,
+        c.price_per_sqft,
+        c.grade,
+        `"${c.top_zipcodes}"`
+      ]);
+      const csv = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Seattle_DBSCAN_Market_Segments.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function initCharts() {
+      const labels = CLUSTER_DATA.map(c => c.cluster === -1 ? 'Outlier (-1)' : `Cluster #${c.cluster}`);
+      const medians = CLUSTER_DATA.map(c => c.price_median);
+      const means = CLUSTER_DATA.map(c => c.price_mean);
+      const pps = CLUSTER_DATA.map(c => c.price_per_sqft);
+
+      new Chart(document.getElementById('priceChart'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Giá Trung Vị - Median ($)',
+              data: medians,
+              backgroundColor: '#09090b',
+              borderRadius: 4
+            },
+            {
+              label: 'Giá Trung Bình - Mean ($)',
+              data: means,
+              backgroundColor: CLUSTER_DATA.map(c => c.cluster === -1 ? '#be123c' : '#a1a1aa'),
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: '#f4f4f5' }
+            },
+            x: {
+              grid: { display: false }
+            }
+          }
+        }
+      });
+
+      new Chart(document.getElementById('sqftChart'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Đơn giá trung bình ($ / Sqft)',
+              data: pps,
+              backgroundColor: CLUSTER_DATA.map(c => c.cluster === -1 ? '#be123c' : (c.tier === 'LUXURY' ? '#047857' : '#3f3f46')),
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: '#f4f4f5' }
+            },
+            x: {
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    // Khởi tạo ngay khi mở trang
+    renderSegmentTable();
+    runValuationAudit();
+    initCharts();
+  </script>
+</body>
+</html>
