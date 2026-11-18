@@ -16,7 +16,12 @@ def generate_interactive_map(df: pd.DataFrame, output_path: str = "seattle_clust
     center_lat = df['lat'].median()
     center_long = df['long'].median()
 
-    m = folium.Map(location=[center_lat, center_long], zoom_start=10, tiles="OpenStreetMap")
+    m = folium.Map(
+        location=[center_lat, center_long],
+        zoom_start=10,
+        tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        attr="Tiles &copy; Esri &mdash; King County GIS"
+    )
 
     cluster_colors = {
         -1: "#7f8c8d",  # Outlier: Gray

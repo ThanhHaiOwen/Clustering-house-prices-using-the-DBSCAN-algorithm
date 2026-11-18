@@ -1413,16 +1413,33 @@
     let markerRefs = {};
 
     function initLeafletMap() {
+      const streetLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; King County GIS',
+        maxZoom: 18
+      });
+
+      const topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; National Geographic',
+        maxZoom: 18
+      });
+
+      const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; USDA, USGS, GeoEye',
+        maxZoom: 18
+      });
+
       map = L.map('leafletMap', {
         center: [47.565, -122.21],
         zoom: 10,
+        layers: [streetLayer],
         preferCanvas: true
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
-        maxZoom: 18
-      }).addTo(map);
+      L.control.layers({
+        "Bản đồ Đường phố (Street)": streetLayer,
+        "Bản đồ Khu dân cư (Topo)": topoLayer,
+        "Ảnh Vệ tinh (Satellite)": satelliteLayer
+      }, null, { position: 'bottomright' }).addTo(map);
 
       markersLayer = L.layerGroup().addTo(map);
     }
