@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SeattleHomeFinder — Cổng Bản Đồ Phân Cụm & Định Giá Bất Động Sản Seattle (DBSCAN)</title>
+  <title>SeattleHomeFinder — Bản Đồ Phân Cụm & Định Giá Bất Động Sản Seattle (DBSCAN)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -61,13 +63,13 @@
       border-bottom: 1px solid var(--border-light);
       position: sticky;
       top: 0;
-      z-index: 200;
+      z-index: 500;
     }
 
     .header-top {
       max-width: 1440px;
       margin: 0 auto;
-      padding: 0.7rem 1.5rem;
+      padding: 0.65rem 1.5rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -123,12 +125,12 @@
     }
 
     .portal-nav-link {
-      padding: 0.5rem 0.95rem;
+      padding: 0.48rem 0.95rem;
       border-radius: var(--radius-btn);
       border: 1px solid transparent;
       background: transparent;
       font-family: inherit;
-      font-size: 0.86rem;
+      font-size: 0.85rem;
       font-weight: 600;
       color: var(--text-body);
       cursor: pointer;
@@ -149,11 +151,11 @@
       border-color: #bfdbfe;
     }
 
-    /* Filter Bar Below Header */
+    /* Interactive Filter Bar */
     .search-filter-bar {
       background: #ffffff;
       border-top: 1px solid var(--border-light);
-      padding: 0.6rem 1.5rem;
+      padding: 0.55rem 1.5rem;
     }
 
     .search-filter-inner {
@@ -161,24 +163,24 @@
       margin: 0 auto;
       display: flex;
       align-items: center;
-      gap: 0.65rem;
+      gap: 0.6rem;
       flex-wrap: wrap;
     }
 
     .search-box-wrap {
       position: relative;
       flex: 1;
-      min-width: 240px;
-      max-width: 340px;
+      min-width: 220px;
+      max-width: 310px;
     }
 
     .search-box-input {
       width: 100%;
-      padding: 0.5rem 0.8rem 0.5rem 2.1rem;
+      padding: 0.48rem 0.75rem 0.48rem 2.05rem;
       border: 1px solid var(--border-color);
       border-radius: var(--radius-btn);
       font-family: inherit;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       background: #ffffff;
       color: var(--text-dark);
     }
@@ -199,11 +201,11 @@
     }
 
     .filter-pill-select {
-      padding: 0.48rem 0.8rem;
+      padding: 0.46rem 0.75rem;
       border: 1px solid var(--border-color);
       border-radius: var(--radius-btn);
       font-family: inherit;
-      font-size: 0.84rem;
+      font-size: 0.83rem;
       font-weight: 500;
       color: var(--text-dark);
       background: #ffffff;
@@ -215,6 +217,25 @@
       border-color: var(--re-blue);
     }
 
+    .btn-reset-map {
+      padding: 0.46rem 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-btn);
+      background: #f9fafb;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-body);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-reset-map:hover {
+      border-color: var(--re-blue);
+      color: var(--re-blue);
+      background: #ffffff;
+    }
+
     .market-summary-tag {
       margin-left: auto;
       font-size: 0.8rem;
@@ -222,15 +243,16 @@
       color: var(--text-muted);
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.35rem;
     }
 
     .market-summary-tag strong {
-      color: var(--text-dark);
+      color: var(--re-blue);
+      font-variant-numeric: tabular-nums;
     }
 
     /* =================================================================
-       SPLIT-SCREEN MAP & PROPERTY LISTINGS (ZILLOW EXPLORER VIEW)
+       SPLIT-SCREEN INTERACTIVE LEAFLET MAP & PROPERTY LISTINGS
        ================================================================= */
     .view-section {
       display: none;
@@ -242,8 +264,8 @@
 
     .explorer-split {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      height: calc(100vh - 114px);
+      grid-template-columns: 1.18fr 0.82fr;
+      height: calc(100vh - 112px);
       min-height: 620px;
     }
 
@@ -258,88 +280,120 @@
       position: relative;
       background: #e5e7eb;
       height: 100%;
-      min-height: 460px;
+      min-height: 480px;
       border-right: 1px solid var(--border-light);
     }
 
-    .map-column iframe {
+    #leafletMap {
       width: 100%;
       height: 100%;
-      border: none;
+      z-index: 1;
     }
 
-    .map-floating-legend {
+    /* Quick Cluster Filter Bar Floating on Top of Map */
+    .map-top-chips {
       position: absolute;
-      bottom: 16px;
-      left: 16px;
-      background: rgba(255, 255, 255, 0.96);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 0.7rem 0.9rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      z-index: 20;
-      max-width: 300px;
-    }
-
-    .legend-title {
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-dark);
-      margin-bottom: 0.45rem;
-    }
-
-    .legend-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.3rem 0.65rem;
-      font-size: 0.73rem;
-      font-weight: 500;
-      color: var(--text-body);
-    }
-
-    .legend-item {
+      top: 12px;
+      left: 54px;
+      right: 12px;
+      z-index: 400;
       display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      pointer-events: none;
+    }
+
+    .map-chip {
+      pointer-events: auto;
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      background: rgba(255, 255, 255, 0.95);
+      color: var(--text-dark);
+      font-family: inherit;
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: inline-flex;
       align-items: center;
       gap: 0.35rem;
+      transition: all 0.15s;
     }
 
-    .legend-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 2px;
-      flex-shrink: 0;
+    .map-chip:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.14);
+    }
+
+    .map-chip.active {
+      background: var(--text-dark);
+      color: #ffffff;
+      border-color: var(--text-dark);
+    }
+
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
     }
 
     /* Right Column: Property Cards */
     .listings-column {
       height: 100%;
       overflow-y: auto;
-      padding: 1.15rem 1.35rem 3rem 1.35rem;
+      padding: 1rem 1.25rem 3rem 1.25rem;
       background: var(--bg-page);
+    }
+
+    .cluster-highlight-banner {
+      background: var(--bg-white);
+      border: 1px solid var(--border-light);
+      border-left: 4px solid var(--re-blue);
+      border-radius: var(--radius-card);
+      padding: 0.85rem 1rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow-card);
+    }
+
+    .cluster-highlight-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin: 0 0 0.25rem 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cluster-highlight-desc {
+      font-size: 0.79rem;
+      color: var(--text-muted);
+      margin: 0;
+      line-height: 1.45;
     }
 
     .listings-header {
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 0.9rem;
-      padding-bottom: 0.65rem;
+      align-items: center;
+      margin-bottom: 0.85rem;
+      padding-bottom: 0.55rem;
       border-bottom: 1px solid var(--border-light);
       flex-wrap: wrap;
       gap: 0.5rem;
     }
 
     .listings-title {
-      font-size: 1.08rem;
+      font-size: 1rem;
       font-weight: 700;
       margin: 0;
       color: var(--text-dark);
     }
 
     .listings-subtitle {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: var(--text-muted);
       margin: 0.15rem 0 0 0;
     }
@@ -348,7 +402,7 @@
     .property-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
+      gap: 0.9rem;
     }
 
     @media (max-width: 640px) {
@@ -363,38 +417,40 @@
       border: 1px solid var(--border-light);
       overflow: hidden;
       box-shadow: var(--shadow-card);
-      transition: box-shadow 0.2s, transform 0.2s;
+      transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
       display: flex;
       flex-direction: column;
+      cursor: pointer;
     }
 
     .property-card:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow-hover);
+      border-color: var(--re-blue);
     }
 
     .property-photo {
-      height: 148px;
+      height: 132px;
       background-size: cover;
       background-position: center;
       position: relative;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 0.6rem;
+      padding: 0.55rem;
     }
 
     .photo-badges {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 0.4rem;
+      gap: 0.35rem;
     }
 
     .cluster-pill {
-      padding: 0.22rem 0.55rem;
+      padding: 0.2rem 0.5rem;
       border-radius: 4px;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 700;
       color: #ffffff;
       text-transform: uppercase;
@@ -404,9 +460,9 @@
     .pps-pill {
       background: rgba(17, 24, 39, 0.85);
       color: #ffffff;
-      padding: 0.22rem 0.5rem;
+      padding: 0.2rem 0.45rem;
       border-radius: 4px;
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 600;
     }
 
@@ -414,14 +470,14 @@
       align-self: flex-start;
       background: rgba(17, 24, 39, 0.78);
       color: #ffffff;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 500;
-      padding: 0.2rem 0.5rem;
+      padding: 0.18rem 0.45rem;
       border-radius: 4px;
     }
 
     .property-body {
-      padding: 0.9rem 1rem;
+      padding: 0.8rem 0.9rem;
       flex: 1;
       display: flex;
       flex-direction: column;
@@ -431,31 +487,31 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      margin-bottom: 0.3rem;
+      margin-bottom: 0.25rem;
     }
 
     .property-price {
-      font-size: 1.3rem;
+      font-size: 1.22rem;
       font-weight: 800;
       color: var(--text-dark);
       letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
     }
 
     .property-mean-tag {
-      font-size: 0.74rem;
+      font-size: 0.72rem;
       color: var(--text-muted);
-      font-weight: 500;
+      font-weight: 600;
     }
 
-    /* Classic Zillow Specs Row: 4 bds | 2.5 ba | 2,150 sqft */
     .property-specs {
       display: flex;
       align-items: center;
-      gap: 0.45rem;
-      font-size: 0.8rem;
+      gap: 0.4rem;
+      font-size: 0.78rem;
       color: var(--text-body);
-      padding-bottom: 0.55rem;
-      margin-bottom: 0.55rem;
+      padding-bottom: 0.5rem;
+      margin-bottom: 0.5rem;
       border-bottom: 1px solid var(--border-light);
       flex-wrap: wrap;
     }
@@ -465,39 +521,39 @@
     }
 
     .property-title {
-      font-size: 0.88rem;
+      font-size: 0.83rem;
       font-weight: 700;
       color: var(--text-dark);
-      margin: 0 0 0.2rem 0;
+      margin: 0 0 0.15rem 0;
     }
 
     .property-zip {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--re-blue);
-      margin-bottom: 0.35rem;
+      font-size: 0.74rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.65rem;
     }
 
-    .property-location {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      margin: 0 0 0.85rem 0;
-      line-height: 1.45;
-      flex: 1;
+    .card-actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.4rem;
+      margin-top: auto;
     }
 
     .property-btn {
       width: 100%;
-      padding: 0.5rem 0.75rem;
+      padding: 0.42rem 0.5rem;
       border-radius: var(--radius-btn);
       border: 1px solid var(--re-blue);
       background: #ffffff;
       color: var(--re-blue);
       font-family: inherit;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.15s;
+      text-align: center;
     }
 
     .property-btn:hover {
@@ -505,8 +561,20 @@
       color: #ffffff;
     }
 
+    .property-btn.secondary {
+      border-color: var(--border-color);
+      color: var(--text-body);
+      background: #f9fafb;
+    }
+
+    .property-btn.secondary:hover {
+      border-color: var(--text-dark);
+      background: var(--text-dark);
+      color: #ffffff;
+    }
+
     /* =================================================================
-       VIEW 2: HOME VALUE ESTIMATOR (CLEAN PROPERTY APPRAISAL)
+       VIEW 2: HOME VALUE ESTIMATOR
        ================================================================= */
     .container-std {
       max-width: 1220px;
@@ -791,7 +859,7 @@
 <body>
 
   <!-- =================================================================
-       TOP REAL ESTATE PORTAL HEADER (CLEAN SVG ICONS, ZERO EMOJIS)
+       TOP REAL ESTATE PORTAL HEADER
        ================================================================= -->
   <header class="portal-header">
     <div class="header-top">
@@ -815,7 +883,7 @@
             <line x1="8" y1="2" x2="8" y2="18"></line>
             <line x1="16" y1="6" x2="16" y2="22"></line>
           </svg>
-          <span>Bản Đồ & Danh Sách Nhà Đất</span>
+          <span>Bản Đồ Lọc Cụm & Nhà Đất</span>
         </button>
         <button class="portal-nav-link" id="nav-estimator" onclick="openView('estimator')">
           <svg class="icon-svg" viewBox="0 0 24 24">
@@ -843,7 +911,7 @@
       </nav>
     </div>
 
-    <!-- Clean Filter Bar -->
+    <!-- Interactive Filter Bar (Filters BOTH Map and Property List) -->
     <div class="search-filter-bar" id="topFilterBar">
       <div class="search-filter-inner">
         <div class="search-box-wrap">
@@ -857,77 +925,97 @@
             type="text"
             id="reSearchInput"
             class="search-box-input"
-            placeholder="Tìm khu vực hoặc mã Zipcode (Bellevue, 98004, 98115)..."
-            oninput="filterListings()"
+            placeholder="Nhập mã Zipcode (VD: 98004, 98052, 98115)..."
+            oninput="applyMapAndListFilter(true)"
           />
         </div>
 
-        <select id="reClusterSelect" class="filter-pill-select" onchange="filterListings()">
-          <option value="ALL">Phân khúc: Tất cả (21,436 căn)</option>
-          <option value="1">Cụm 1: Nhà Khởi Điểm (~$275,000)</option>
-          <option value="0">Cụm 0: Nhà Phổ Thông Đô Thị (~$375,000)</option>
-          <option value="2">Cụm 2: Nhà Gia Đình Trung Cấp (~$510,000)</option>
-          <option value="4">Cụm 4: Nhà Cao Cấp Ven Đô (~$720,500)</option>
-          <option value="5">Cụm 5: Dinh Thự Sang Trọng (~$915,000)</option>
-          <option value="3">Cụm 3: Biệt Thự Bellevue (~$1,280,000)</option>
-          <option value="-1">Cụm -1: Bất Động Sản Cá Biệt / Outliers (388 căn)</option>
+        <select id="reClusterSelect" class="filter-pill-select" onchange="applyMapAndListFilter(true)">
+          <option value="ALL">Hiển thị: Tất cả 7 Cụm DBSCAN</option>
+          <option value="0">Cụm 0: Nhà Phổ Thông Đô Thị (~$375k)</option>
+          <option value="1">Cụm 1: Nhà Khởi Điểm Nam Seattle (~$275k)</option>
+          <option value="2">Cụm 2: Nhà Gia Đình Trung Cấp (~$510k)</option>
+          <option value="4">Cụm 4: Nhà Cao Cấp Ven Đô (~$720k)</option>
+          <option value="5">Cụm 5: Dinh Thự Sang Trọng (~$915k)</option>
+          <option value="3">Cụm 3: Biệt Thự Bellevue (~$1.28M)</option>
+          <option value="-1">Cụm -1: Bất Động Sản Ngoại Lai (Outliers)</option>
         </select>
 
-        <select id="rePriceSelect" class="filter-pill-select" onchange="filterListings()">
-          <option value="ALL">Mức giá: Tất cả</option>
-          <option value="UNDER_400">Dưới $400,000</option>
-          <option value="400_800">Từ $400,000 – $800,000</option>
-          <option value="OVER_800">Trên $800,000</option>
+        <select id="rePriceSelect" class="filter-pill-select" onchange="applyMapAndListFilter(true)">
+          <option value="ALL">Khoảng giá: Tất cả</option>
+          <option value="UNDER_350">Dưới $350,000</option>
+          <option value="350_600">Từ $350,000 – $600,000</option>
+          <option value="600_1000">Từ $600,000 – $1,000,000</option>
+          <option value="OVER_1000">Trên $1,000,000 (Triệu đô)</option>
         </select>
+
+        <select id="reBedsSelect" class="filter-pill-select" onchange="applyMapAndListFilter(true)">
+          <option value="ALL">Số phòng ngủ: Tất cả</option>
+          <option value="2">Từ 2+ phòng ngủ</option>
+          <option value="3">Từ 3+ phòng ngủ</option>
+          <option value="4">Từ 4+ phòng ngủ</option>
+          <option value="5">Từ 5+ phòng ngủ</option>
+        </select>
+
+        <button class="btn-reset-map" onclick="resetAllFilters()">
+          Đặt lại bản đồ
+        </button>
 
         <div class="market-summary-tag">
-          <svg class="icon-svg" style="width: 14px; height: 14px;" viewBox="0 0 24 24">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-            <circle cx="12" cy="10" r="3"></circle>
-          </svg>
-          <span>King County, WA • <strong>21,436</strong> Bất động sản</span>
+          <span>Đang hiển thị trên bản đồ: <strong id="mapPointCount">1,050</strong> căn mẫu đại diện</span>
         </div>
       </div>
     </div>
   </header>
 
   <!-- =================================================================
-       VIEW 1: SPLIT-SCREEN MAP & PROPERTY EXPLORER
+       VIEW 1: SPLIT-SCREEN INTERACTIVE LEAFLET MAP & PROPERTY EXPLORER
        ================================================================= -->
   <section class="view-section active" id="view-explorer">
     <div class="explorer-split">
-      <!-- Left: Interactive Folium Map -->
+      <!-- Left: Dynamic Leaflet Map -->
       <div class="map-column">
-        <iframe src="seattle_clusters_map.html" title="Bản đồ phân cụm bất động sản Seattle"></iframe>
-
-        <div class="map-floating-legend">
-          <div class="legend-title">Chú Giải Phân Cụm Không Gian DBSCAN</div>
-          <div class="legend-grid">
-            <div class="legend-item"><span class="legend-dot" style="background:#2563eb;"></span> Cụm 0: Phổ thông ($375k)</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#0d9488;"></span> Cụm 1: Khởi điểm ($275k)</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#16a34a;"></span> Cụm 2: Gia đình ($510k)</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#d97706;"></span> Cụm 4: Ven đô ($720k)</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#7c3aed;"></span> Cụm 5: Dinh thự ($915k)</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#be185d;"></span> Cụm 3: Biệt thự ($1.28M)</div>
-            <div class="legend-item" style="grid-column: span 2; color:#b91c1c; font-weight: 600;">
-              <span class="legend-dot" style="background:#dc2626;"></span> Cụm -1: Bất động sản Cá biệt / Ngoại lai (Outliers)
-            </div>
-          </div>
+        <div class="map-top-chips" id="mapQuickChips">
+          <button class="map-chip active" data-cluster="ALL" onclick="selectClusterQuick('ALL')">
+            Tất cả (7 Cụm)
+          </button>
+          <button class="map-chip" data-cluster="0" onclick="selectClusterQuick('0')">
+            <span class="chip-dot" style="background:#2563eb;"></span> Cụm 0: Phổ thông
+          </button>
+          <button class="map-chip" data-cluster="1" onclick="selectClusterQuick('1')">
+            <span class="chip-dot" style="background:#0d9488;"></span> Cụm 1: Khởi điểm
+          </button>
+          <button class="map-chip" data-cluster="2" onclick="selectClusterQuick('2')">
+            <span class="chip-dot" style="background:#16a34a;"></span> Cụm 2: Gia đình
+          </button>
+          <button class="map-chip" data-cluster="4" onclick="selectClusterQuick('4')">
+            <span class="chip-dot" style="background:#d97706;"></span> Cụm 4: Ven đô
+          </button>
+          <button class="map-chip" data-cluster="5" onclick="selectClusterQuick('5')">
+            <span class="chip-dot" style="background:#7c3aed;"></span> Cụm 5: Dinh thự
+          </button>
+          <button class="map-chip" data-cluster="3" onclick="selectClusterQuick('3')">
+            <span class="chip-dot" style="background:#be185d;"></span> Cụm 3: Biệt thự
+          </button>
+          <button class="map-chip" data-cluster="-1" onclick="selectClusterQuick('-1')">
+            <span class="chip-dot" style="background:#dc2626;"></span> Cụm -1: Outliers
+          </button>
         </div>
+
+        <div id="leafletMap"></div>
       </div>
 
-      <!-- Right: Property Listing Cards -->
+      <!-- Right: Dynamic Filtered Property Cards -->
       <div class="listings-column">
+        <div id="clusterHighlightBox" class="cluster-highlight-banner"></div>
+
         <div class="listings-header">
           <div>
-            <h2 class="listings-title">Phân Khúc Nhà Đất & Bất Động Sản Đại Diện</h2>
+            <h2 class="listings-title" id="listingsHeadingTitle">Danh Sách Căn Nhà Trên Bản Đồ</h2>
             <p class="listings-subtitle" id="listingsCountText">
-              Dữ liệu phân cụm thực tế từ 21,436 giao dịch tại Seattle
+              Bấm vào bất kỳ căn nhà nào bên dưới để phóng to vị trí chính xác trên bản đồ
             </p>
           </div>
-          <a href="seattle_clusters_map.html" target="_blank" style="font-size: 0.8rem; font-weight: 600; color: var(--re-blue); text-decoration: none;">
-            Xem bản đồ toàn màn hình ↗
-          </a>
         </div>
 
         <div class="property-grid" id="propertyCardsContainer"></div>
@@ -1151,6 +1239,7 @@
               <th>Diện Tích & Cấp Độ</th>
               <th>Đơn Giá ($/Sqft)</th>
               <th>Mã Vùng Zipcode Trọng Điểm</th>
+              <th style="text-align: right;">Bản Đồ</th>
             </tr>
           </thead>
           <tbody id="marketReportTableBody"></tbody>
@@ -1169,6 +1258,9 @@
   </section>
 
   <script>
+    // 1,050 căn nhà thực tế trích xuất từ tập dữ liệu kc_house_data.csv kèm nhãn cụm DBSCAN
+    const SAMPLED_HOUSES = [{"id":"3353402390","c":-1,"p":171500,"s":1150,"bd":3,"ba":1.0,"g":5,"z":"98001","lat":47.2642,"lng":-122.258},{"id":"3888100226","c":-1,"p":461000,"s":3600,"bd":3,"ba":1.8,"g":6,"z":"98033","lat":47.6893,"lng":-122.167},{"id":"7841300535","c":-1,"p":225000,"s":1560,"bd":2,"ba":2.5,"g":5,"z":"98055","lat":47.4749,"lng":-122.213},{"id":"1329000030","c":-1,"p":1680000,"s":4490,"bd":4,"ba":3.8,"g":12,"z":"98005","lat":47.6406,"lng":-122.156},{"id":"1773101530","c":-1,"p":275000,"s":520,"bd":1,"ba":1.0,"g":5,"z":"98106","lat":47.5533,"lng":-122.363},{"id":"9208900037","c":-1,"p":6885000,"s":9890,"bd":6,"ba":7.8,"g":13,"z":"98039","lat":47.6305,"lng":-122.24},{"id":"4008400515","c":-1,"p":190000,"s":780,"bd":1,"ba":0.8,"g":5,"z":"98058","lat":47.4396,"lng":-122.104},{"id":"8907500070","c":-1,"p":5350000,"s":8000,"bd":5,"ba":5.0,"g":12,"z":"98004","lat":47.6232,"lng":-122.22},{"id":"421000185","c":-1,"p":200000,"s":700,"bd":2,"ba":1.0,"g":5,"z":"98056","lat":47.4953,"lng":-122.169},{"id":"4139470010","c":-1,"p":1615000,"s":4250,"bd":4,"ba":3.2,"g":12,"z":"98006","lat":47.5507,"lng":-122.113},{"id":"2524069078","c":-1,"p":2700000,"s":7850,"bd":4,"ba":4.0,"g":12,"z":"98027","lat":47.5406,"lng":-121.982},{"id":"3623059027","c":-1,"p":200000,"s":780,"bd":2,"ba":0.8,"g":4,"z":"98058","lat":47.442,"lng":-122.105},{"id":"8698100170","c":-1,"p":111300,"s":1060,"bd":2,"ba":1.0,"g":5,"z":"98002","lat":47.3066,"lng":-122.223},{"id":"2420069251","c":-1,"p":262000,"s":520,"bd":1,"ba":0.8,"g":3,"z":"98022","lat":47.2082,"lng":-121.995},{"id":"795000765","c":-1,"p":92000,"s":760,"bd":2,"ba":1.0,"g":5,"z":"98168","lat":47.5045,"lng":-122.329},{"id":"1624079088","c":-1,"p":415000,"s":3900,"bd":3,"ba":2.8,"g":6,"z":"98024","lat":47.5621,"lng":-121.924},{"id":"41000454","c":-1,"p":130000,"s":880,"bd":2,"ba":1.0,"g":5,"z":"98188","lat":47.4672,"lng":-122.291},{"id":"3629940160","c":-1,"p":2200000,"s":5840,"bd":5,"ba":4.5,"g":12,"z":"98029","lat":47.5457,"lng":-121.991},{"id":"7899800864","c":-1,"p":259950,"s":1070,"bd":2,"ba":2.0,"g":9,"z":"98106","lat":47.5213,"lng":-122.357},{"id":"9435300030","c":-1,"p":550000,"s":1660,"bd":4,"ba":1.0,"g":5,"z":"98052","lat":47.6621,"lng":-122.132},{"id":"2424059170","c":-1,"p":900000,"s":7120,"bd":5,"ba":6.0,"g":12,"z":"98006","lat":47.5451,"lng":-122.114},{"id":"9471200265","c":-1,"p":2500000,"s":3960,"bd":4,"ba":3.2,"g":12,"z":"98105","lat":47.6701,"lng":-122.259},{"id":"9808700762","c":-1,"p":7062500,"s":10040,"bd":5,"ba":4.5,"g":11,"z":"98004","lat":47.65,"lng":-122.214},{"id":"4139490210","c":-1,"p":1285000,"s":4080,"bd":4,"ba":3.5,"g":12,"z":"98006","lat":47.5519,"lng":-122.106},{"id":"726049131","c":-1,"p":325000,"s":1750,"bd":3,"ba":2.0,"g":5,"z":"98133","lat":47.7489,"lng":-122.35},{"id":"2475901105","c":-1,"p":291000,"s":1280,"bd":3,"ba":1.0,"g":5,"z":"98024","lat":47.566,"lng":-121.894},{"id":"1322049150","c":-1,"p":85000,"s":910,"bd":2,"ba":1.0,"g":5,"z":"98032","lat":47.3897,"lng":-122.236},{"id":"2946001675","c":-1,"p":234000,"s":940,"bd":2,"ba":1.0,"g":5,"z":"98198","lat":47.4206,"lng":-122.324},{"id":"3840700600","c":-1,"p":355000,"s":900,"bd":3,"ba":1.0,"g":5,"z":"98034","lat":47.7146,"lng":-122.234},{"id":"4139910170","c":-1,"p":1005000,"s":4050,"bd":5,"ba":3.2,"g":12,"z":"98006","lat":47.5465,"lng":-122.122},{"id":"1225069038","c":-1,"p":2280000,"s":13540,"bd":7,"ba":8.0,"g":12,"z":"98053","lat":47.6675,"lng":-121.986},{"id":"66000070","c":-1,"p":315000,"s":630,"bd":2,"ba":1.0,"g":5,"z":"98126","lat":47.5486,"lng":-122.38},{"id":"1222069089","c":-1,"p":375000,"s":800,"bd":1,"ba":1.0,"g":5,"z":"98038","lat":47.4134,"lng":-121.986},{"id":"624069108","c":-1,"p":3200000,"s":7000,"bd":4,"ba":3.2,"g":12,"z":"98075","lat":47.5928,"lng":-122.086},{"id":"3828000405","c":-1,"p":176500,"s":930,"bd":3,"ba":1.0,"g":5,"z":"98032","lat":47.3745,"lng":-122.231},{"id":"9183700845","c":-1,"p":175000,"s":800,"bd":2,"ba":1.0,"g":5,"z":"98030","lat":47.3788,"lng":-122.224},{"id":"3320000810","c":-1,"p":380000,"s":1680,"bd":5,"ba":2.0,"g":5,"z":"98144","lat":47.5965,"lng":-122.311},{"id":"121039156","c":-1,"p":249000,"s":1030,"bd":3,"ba":1.0,"g":5,"z":"98023","lat":47.3343,"lng":-122.362},{"id":"1437500015","c":-1,"p":150000,"s":490,"bd":3,"ba":0.8,"g":5,"z":"98014","lat":47.7112,"lng":-121.315},{"id":"1151100010","c":-1,"p":280000,"s":1330,"bd":3,"ba":1.0,"g":5,"z":"98045","lat":47.4807,"lng":-121.775},{"id":"2954400190","c":-1,"p":1295650,"s":4810,"bd":0,"ba":0.0,"g":12,"z":"98053","lat":47.6642,"lng":-122.069},{"id":"6303400395","c":-1,"p":325000,"s":410,"bd":1,"ba":0.8,"g":4,"z":"98146","lat":47.5077,"lng":-122.357},{"id":"5381000082","c":-1,"p":185000,"s":670,"bd":2,"ba":1.0,"g":5,"z":"98188","lat":47.4521,"lng":-122.283},{"id":"323059167","c":-1,"p":259000,"s":1210,"bd":2,"ba":1.0,"g":5,"z":"98059","lat":47.5044,"lng":-122.148},{"id":"2767600171","c":-1,"p":440000,"s":1010,"bd":2,"ba":1.5,"g":5,"z":"98107","lat":47.6757,"lng":-122.385},{"id":"1423049019","c":-1,"p":90000,"s":580,"bd":2,"ba":1.0,"g":5,"z":"98178","lat":47.4852,"lng":-122.251},{"id":"421000455","c":-1,"p":253200,"s":1360,"bd":3,"ba":1.0,"g":5,"z":"98056","lat":47.4945,"lng":-122.166},{"id":"6117502230","c":-1,"p":1637500,"s":4660,"bd":3,"ba":3.5,"g":12,"z":"98166","lat":47.4418,"lng":-122.354},{"id":"3046200125","c":-1,"p":202000,"s":740,"bd":2,"ba":1.0,"g":5,"z":"98168","lat":47.4807,"lng":-122.332},{"id":"423000035","c":-1,"p":225000,"s":960,"bd":3,"ba":1.0,"g":5,"z":"98056","lat":47.497,"lng":-122.171},{"id":"2320069089","c":-1,"p":212000,"s":1830,"bd":3,"ba":1.5,"g":5,"z":"98022","lat":47.2057,"lng":-122.003},{"id":"1827200265","c":-1,"p":1899000,"s":3690,"bd":2,"ba":2.8,"g":12,"z":"98166","lat":47.4485,"lng":-122.369},{"id":"3340401535","c":-1,"p":140000,"s":730,"bd":1,"ba":1.0,"g":4,"z":"98055","lat":47.467,"lng":-122.215},{"id":"1925069082","c":-1,"p":2200000,"s":4640,"bd":5,"ba":4.2,"g":8,"z":"98052","lat":47.6393,"lng":-122.097},{"id":"7839300185","c":-1,"p":225000,"s":1340,"bd":3,"ba":1.0,"g":5,"z":"98055","lat":47.477,"lng":-122.209},{"id":"7227800065","c":-1,"p":199000,"s":1440,"bd":4,"ba":2.0,"g":5,"z":"98056","lat":47.5093,"lng":-122.182},{"id":"9831200500","c":-1,"p":2479000,"s":6810,"bd":5,"ba":3.8,"g":13,"z":"98102","lat":47.6285,"lng":-122.322},{"id":"5279100625","c":-1,"p":248000,"s":770,"bd":2,"ba":1.0,"g":4,"z":"98027","lat":47.5325,"lng":-122.031},{"id":"7558700030","c":-1,"p":5300000,"s":7390,"bd":6,"ba":6.0,"g":12,"z":"98040","lat":47.5631,"lng":-122.21},{"id":"3626039250","c":-1,"p":283000,"s":940,"bd":2,"ba":1.0,"g":5,"z":"98103","lat":47.698,"lng":-122.357},{"id":"3141600210","c":-1,"p":186000,"s":1340,"bd":3,"ba":2.0,"g":5,"z":"98002","lat":47.299,"lng":-122.228},{"id":"3025059124","c":-1,"p":3168750,"s":4330,"bd":5,"ba":3.5,"g":12,"z":"98004","lat":47.6251,"lng":-122.218},{"id":"1454100010","c":-1,"p":338500,"s":720,"bd":2,"ba":1.0,"g":5,"z":"98125","lat":47.7259,"lng":-122.29},{"id":"2320069107","c":-1,"p":185000,"s":820,"bd":2,"ba":1.0,"g":5,"z":"98022","lat":47.2039,"lng":-122.003},{"id":"522059327","c":-1,"p":157500,"s":740,"bd":2,"ba":1.0,"g":5,"z":"98031","lat":47.4217,"lng":-122.197},{"id":"7325600160","c":-1,"p":299000,"s":560,"bd":1,"ba":0.8,"g":4,"z":"98014","lat":47.675,"lng":-121.854},{"id":"7738500731","c":-1,"p":4500000,"s":6640,"bd":5,"ba":5.5,"g":12,"z":"98155","lat":47.7493,"lng":-122.28},{"id":"2722059292","c":-1,"p":129000,"s":650,"bd":1,"ba":1.0,"g":5,"z":"98042","lat":47.3721,"lng":-122.159},{"id":"3625049042","c":-1,"p":3635000,"s":5490,"bd":5,"ba":6.0,"g":12,"z":"98039","lat":47.6165,"lng":-122.236},{"id":"8005100360","c":-1,"p":169900,"s":910,"bd":3,"ba":1.0,"g":5,"z":"98022","lat":47.2068,"lng":-121.992},{"id":"1346300150","c":-1,"p":3300000,"s":7710,"bd":8,"ba":4.0,"g":12,"z":"98112","lat":47.6263,"lng":-122.314},{"id":"685000115","c":-1,"p":2150000,"s":4340,"bd":8,"ba":6.0,"g":8,"z":"98004","lat":47.6316,"lng":-122.202},{"id":"5634500170","c":-1,"p":250000,"s":950,"bd":2,"ba":1.0,"g":5,"z":"98028","lat":47.7494,"lng":-122.237},{"id":"1400300055","c":-1,"p":425000,"s":770,"bd":2,"ba":1.0,"g":5,"z":"98144","lat":47.5964,"lng":-122.299},{"id":"3121059033","c":-1,"p":325000,"s":1490,"bd":3,"ba":1.0,"g":5,"z":"98092","lat":47.2597,"lng":-122.228},{"id":"9268200600","c":-1,"p":413500,"s":770,"bd":2,"ba":1.0,"g":5,"z":"98117","lat":47.6959,"lng":-122.364},{"id":"3424069145","c":-1,"p":343000,"s":1400,"bd":3,"ba":1.0,"g":5,"z":"98027","lat":47.5271,"lng":-122.036},{"id":"9578050120","c":-1,"p":1325000,"s":4010,"bd":4,"ba":2.5,"g":12,"z":"98052","lat":47.7139,"lng":-122.106},{"id":"6399600115","c":-1,"p":279000,"s":1280,"bd":3,"ba":1.5,"g":5,"z":"98038","lat":47.3895,"lng":-122.023},{"id":"418000330","c":-1,"p":199950,"s":700,"bd":2,"ba":1.0,"g":5,"z":"98056","lat":47.4924,"lng":-122.174},{"id":"5379802181","c":-1,"p":193000,"s":680,"bd":2,"ba":1.0,"g":5,"z":"98188","lat":47.4559,"lng":-122.289},{"id":"7116000425","c":-1,"p":150000,"s":720,"bd":2,"ba":1.0,"g":5,"z":"98002","lat":47.303,"lng":-122.217},{"id":"8581400015","c":-1,"p":189900,"s":1000,"bd":2,"ba":1.0,"g":5,"z":"98002","lat":47.297,"lng":-122.227},{"id":"8856001090","c":-1,"p":185900,"s":940,"bd":3,"ba":1.0,"g":5,"z":"98001","lat":47.2763,"lng":-122.257},{"id":"2122059127","c":-1,"p":209900,"s":1030,"bd":3,"ba":1.0,"g":5,"z":"98042","lat":47.375,"lng":-122.166},{"id":"4139910160","c":-1,"p":1600000,"s":4320,"bd":5,"ba":3.2,"g":12,"z":"98006","lat":47.5461,"lng":-122.122},{"id":"7116500125","c":-1,"p":189000,"s":1700,"bd":2,"ba":2.0,"g":5,"z":"98002","lat":47.3025,"lng":-122.224},{"id":"6911700066","c":-1,"p":175000,"s":670,"bd":2,"ba":1.0,"g":5,"z":"98126","lat":47.5769,"lng":-122.372},{"id":"1219000120","c":-1,"p":340000,"s":1140,"bd":4,"ba":1.0,"g":5,"z":"98166","lat":47.4619,"lng":-122.344},{"id":"7227800180","c":-1,"p":325000,"s":1730,"bd":5,"ba":2.0,"g":5,"z":"98056","lat":47.5076,"lng":-122.178},{"id":"2426039123","c":-1,"p":2415000,"s":7880,"bd":5,"ba":4.8,"g":13,"z":"98177","lat":47.7334,"lng":-122.362},{"id":"3025059093","c":-1,"p":3100000,"s":5090,"bd":5,"ba":5.2,"g":12,"z":"98004","lat":47.6297,"lng":-122.216},{"id":"7227800110","c":-1,"p":315000,"s":1750,"bd":6,"ba":2.0,"g":5,"z":"98056","lat":47.5096,"lng":-122.178},{"id":"3303850390","c":-1,"p":2983000,"s":7400,"bd":5,"ba":5.5,"g":13,"z":"98006","lat":47.5431,"lng":-122.112},{"id":"9522300010","c":-1,"p":1490000,"s":4560,"bd":3,"ba":3.5,"g":12,"z":"98034","lat":47.6995,"lng":-122.228},{"id":"2225059214","c":-1,"p":1578000,"s":4670,"bd":4,"ba":3.2,"g":12,"z":"98005","lat":47.635,"lng":-122.164},{"id":"7877400266","c":-1,"p":206000,"s":970,"bd":3,"ba":1.0,"g":5,"z":"98002","lat":47.2808,"lng":-122.225},{"id":"2085200545","c":-1,"p":180000,"s":840,"bd":3,"ba":1.0,"g":5,"z":"98038","lat":47.3948,"lng":-122.028},{"id":"8678500060","c":-1,"p":1550000,"s":6070,"bd":5,"ba":4.2,"g":12,"z":"98024","lat":47.5954,"lng":-121.95},{"id":"5066400483","c":-1,"p":249900,"s":1380,"bd":3,"ba":1.8,"g":5,"z":"98001","lat":47.294,"lng":-122.281},{"id":"3521059042","c":-1,"p":255500,"s":1370,"bd":4,"ba":1.0,"g":5,"z":"98092","lat":47.2716,"lng":-122.144},{"id":"1670400090","c":-1,"p":182000,"s":1160,"bd":3,"ba":1.0,"g":5,"z":"98168","lat":47.4772,"lng":-122.269},{"id":"795000620","c":-1,"p":115000,"s":1080,"bd":3,"ba":1.0,"g":5,"z":"98168","lat":47.5045,"lng":-122.33},{"id":"7889600080","c":-1,"p":208000,"s":1050,"bd":3,"ba":1.0,"g":5,"z":"98146","lat":47.4933,"lng":-122.338},{"id":"2724069010","c":-1,"p":305000,"s":960,"bd":2,"ba":1.0,"g":5,"z":"98027","lat":47.5322,"lng":-122.033},{"id":"1931300010","c":-1,"p":562500,"s":1170,"bd":2,"ba":1.0,"g":5,"z":"98103","lat":47.6574,"lng":-122.345},{"id":"3980300371","c":-1,"p":142000,"s":290,"bd":0,"ba":0.0,"g":1,"z":"98024","lat":47.5308,"lng":-121.888},{"id":"40000362","c":-1,"p":78000,"s":780,"bd":2,"ba":1.0,"g":5,"z":"98168","lat":47.4739,"lng":-122.28},{"id":"6638900115","c":-1,"p":296000,"s":750,"bd":2,"ba":1.0,"g":5,"z":"98117","lat":47.6919,"lng":-122.371},{"id":"985000900","c":-1,"p":198500,"s":1520,"bd":3,"ba":1.8,"g":5,"z":"98168","lat":47.4924,"lng":-122.311},{"id":"419000035","c":-1,"p":187000,"s":860,"bd":2,"ba":1.0,"g":5,"z":"98056","lat":47.492,"lng":-122.171},{"id":"8151600470","c":-1,"p":121800,"s":940,"bd":2,"ba":1.0,"g":5,"z":"98146","lat":47.5065,"lng":-122.364},{"id":"1437500035","c":-1,"p":155000,"s":1010,"bd":2,"ba":1.0,"g":5,"z":"98014","lat":47.7105,"lng":-121.316},{"id":"3426049284","c":-1,"p":2300000,"s":4110,"bd":4,"ba":3.2,"g":12,"z":"98115","lat":47.6934,"lng":-122.271},{"id":"7224000980","c":-1,"p":100000,"s":1120,"bd":4,"ba":1.0,"g":5,"z":"98055","lat":47.4904,"lng":-122.203},{"id":"6838800140","c":-1,"p":1100000,"s":4270,"bd":4,"ba":3.5,"g":12,"z":"98077","lat":47.7354,"lng":-122.078},{"id":"1180005220","c":-1,"p":225000,"s":1070,"bd":2,"ba":1.0,"g":5,"z":"98178","lat":47.495,"lng":-122.227},{"id":"3324069070","c":-1,"p":195000,"s":1190,"bd":2,"ba":1.0,"g":5,"z":"98027","lat":47.524,"lng":-122.04},{"id":"2902201301","c":-1,"p":664950,"s":1180,"bd":2,"ba":1.8,"g":10,"z":"98102","lat":47.6395,"lng":-122.329},{"id":"822059059","c":-1,"p":292500,"s":880,"bd":2,"ba":1.0,"g":5,"z":"98031","lat":47.4115,"lng":-122.197},{"id":"1024000109","c":-1,"p":295000,"s":740,"bd":2,"ba":1.0,"g":5,"z":"98116","lat":47.5704,"lng":-122.409},{"id":"3304700130","c":-1,"p":1755000,"s":3860,"bd":4,"ba":4.0,"g":12,"z":"98177","lat":47.7469,"lng":-122.378},{"id":"8127700845","c":-1,"p":375000,"s":710,"bd":2,"ba":1.0,"g":5,"z":"98199","lat":47.64,"lng":-122.394},{"id":"4139910250","c":-1,"p":1525000,"s":5850,"bd":4,"ba":3.8,"g":12,"z":"98006","lat":47.5485,"lng":-122.124},{"id":"1823069059","c":-1,"p":355000,"s":750,"bd":1,"ba":1.8,"g":4,"z":"98059","lat":47.4756,"lng":-122.09},{"id":"2023049218","c":-1,"p":105500,"s":930,"bd":2,"ba":1.0,"g":5,"z":"98148","lat":47.4611,"lng":-122.324},{"id":"6058600220","c":-1,"p":230000,"s":1040,"bd":3,"ba":1.5,"g":9,"z":"98144","lat":47.5951,"lng":-122.301},{"id":"4139500080","c":-1,"p":1488000,"s":5180,"bd":4,"ba":4.2,"g":12,"z":"98006","lat":47.5513,"lng":-122.109},{"id":"418000145","c":-1,"p":213800,"s":740,"bd":2,"ba":1.0,"g":5,"z":"98056","lat":47.4934,"lng":-122.173},{"id":"2853600155","c":-1,"p":110000,"s":640,"bd":1,"ba":1.0,"g":5,"z":"98126","lat":47.5144,"lng":-122.368},{"id":"7802900380","c":-1,"p":335000,"s":1360,"bd":2,"ba":1.0,"g":5,"z":"98065","lat":47.5229,"lng":-121.838},{"id":"179001101","c":-1,"p":135000,"s":840,"bd":3,"ba":1.0,"g":5,"z":"98178","lat":47.494,"lng":-122.275},{"id":"333100295","c":-1,"p":3120000,"s":4490,"bd":3,"ba":3.5,"g":12,"z":"98034","lat":47.6997,"lng":-122.24},{"id":"7335400345","c":-1,"p":135000,"s":780,"bd":2,"ba":1.0,"g":5,"z":"98002","lat":47.305,"lng":-122.215},{"id":"3122069029","c":-1,"p":120000,"s":990,"bd":2,"ba":1.0,"g":4,"z":"98042","lat":47.3577,"lng":-122.085},{"id":"6303401150","c":-1,"p":125000,"s":810,"bd":2,"ba":1.0,"g":5,"z":"98146","lat":47.5033,"lng":-122.358},{"id":"1549500370","c":-1,"p":210000,"s":1340,"bd":3,"ba":1.0,"g":5,"z":"98019","lat":47.7534,"lng":-121.912},{"id":"1525059261","c":-1,"p":1900000,"s":5160,"bd":5,"ba":4.5,"g":12,"z":"98005","lat":47.6568,"lng":-122.154},{"id":"844001145","c":-1,"p":208500,"s":880,"bd":2,"ba":1.0,"g":5,"z":"98010","lat":47.3107,"lng":-121.999},{"id":"2114700500","c":-1,"p":90000,"s":560,"bd":1,"ba":1.0,"g":4,"z":"98106","lat":47.5335,"lng":-122.348},{"id":"1604601572","c":-1,"p":345000,"s":860,"bd":2,"ba":2.2,"g":9,"z":"98118","lat":47.5663,"lng":-122.29},{"id":"844001140","c":-1,"p":206000,"s":1050,"bd":3,"ba":1.0,"g":5,"z":"98010","lat":47.3106,"lng":-121.999},{"id":"4139490190","c":-1,"p":1500000,"s":4410,"bd":4,"ba":3.5,"g":12,"z":"98006","lat":47.5518,"lng":-122.107},{"id":"7227500865","c":-1,"p":141800,"s":930,"bd":2,"ba":1.0,"g":5,"z":"98056","lat":47.4966,"lng":-122.187},{"id":"7352200450","c":-1,"p":2050000,"s":3580,"bd":4,"ba":3.2,"g":7,"z":"98125","lat":47.7087,"lng":-122.276},{"id":"2422029094","c":-1,"p":517534,"s":833,"bd":2,"ba":1.0,"g":5,"z":"98070","lat":47.3889,"lng":-122.482},{"id":"7227500740","c":-1,"p":217000,"s":720,"bd":2,"ba":1.0,"g":5,"z":"98056","lat":47.496,"lng":-122.186},{"id":"1352300120","c":-1,"p":262000,"s":1500,"bd":2,"ba":1.0,"g":5,"z":"98055","lat":47.4857,"lng":-122.2},{"id":"3340401555","c":-1,"p":235000,"s":1690,"bd":4,"ba":1.5,"g":5,"z":"98055","lat":47.4667,"lng":-122.215},{"id":"2303900100","c":-1,"p":3800000,"s":5510,"bd":3,"ba":4.2,"g":13,"z":"98177","lat":47.7296,"lng":-122.37},{"id":"5028600360","c":0,"p":213675,"s":1560,"bd":3,"ba":2.2,"g":7,"z":"98023","lat":47.2862,"lng":-122.352},{"id":"182000350","c":0,"p":287500,"s":2020,"bd":5,"ba":2.0,"g":7,"z":"98178","lat":47.4891,"lng":-122.263},{"id":"4172100200","c":0,"p":470000,"s":1400,"bd":3,"ba":1.0,"g":7,"z":"98117","lat":47.681,"lng":-122.364},{"id":"2025701080","c":0,"p":305000,"s":1370,"bd":3,"ba":2.2,"g":7,"z":"98038","lat":47.3504,"lng":-122.035},{"id":"8818900250","c":0,"p":530000,"s":1340,"bd":3,"ba":1.0,"g":7,"z":"98105","lat":47.6633,"lng":-122.324},{"id":"7649900175","c":0,"p":494000,"s":2090,"bd":4,"ba":1.8,"g":7,"z":"98136","lat":47.5555,"lng":-122.397},{"id":"9268850350","c":0,"p":304500,"s":1350,"bd":4,"ba":2.0,"g":7,"z":"98027","lat":47.5394,"lng":-122.026},{"id":"1062100075","c":0,"p":455000,"s":980,"bd":2,"ba":1.0,"g":7,"z":"98155","lat":47.7518,"lng":-122.279},{"id":"7760400900","c":0,"p":279000,"s":2040,"bd":4,"ba":2.5,"g":7,"z":"98042","lat":47.3691,"lng":-122.074},{"id":"2987400025","c":0,"p":253000,"s":1030,"bd":3,"ba":1.0,"g":7,"z":"98056","lat":47.4988,"lng":-122.168},{"id":"3824100235","c":0,"p":425000,"s":2120,"bd":4,"ba":1.8,"g":7,"z":"98028","lat":47.771,"lng":-122.258},{"id":"6918730230","c":0,"p":485000,"s":1810,"bd":4,"ba":2.2,"g":7,"z":"98034","lat":47.7319,"lng":-122.204},{"id":"1545804340","c":0,"p":240000,"s":1760,"bd":3,"ba":1.8,"g":7,"z":"98038","lat":47.3647,"lng":-122.05},{"id":"4443800130","c":0,"p":320000,"s":1380,"bd":2,"ba":1.0,"g":7,"z":"98117","lat":47.6875,"lng":-122.392},{"id":"3211210200","c":0,"p":365000,"s":1290,"bd":3,"ba":1.8,"g":7,"z":"98034","lat":47.7329,"lng":-122.237},{"id":"1115100119","c":0,"p":360000,"s":1920,"bd":4,"ba":2.0,"g":7,"z":"98155","lat":47.758,"lng":-122.325},{"id":"8835200800","c":0,"p":281000,"s":930,"bd":2,"ba":1.0,"g":7,"z":"98034","lat":47.7242,"lng":-122.161},{"id":"5647900930","c":0,"p":195000,"s":1070,"bd":3,"ba":1.0,"g":7,"z":"98001","lat":47.3278,"lng":-122.262},{"id":"1238500978","c":0,"p":365000,"s":950,"bd":3,"ba":1.0,"g":7,"z":"98033","lat":47.6884,"lng":-122.186},{"id":"2742100009","c":0,"p":385000,"s":1900,"bd":3,"ba":1.8,"g":7,"z":"98118","lat":47.5549,"lng":-122.292},{"id":"2215500220","c":0,"p":525000,"s":1580,"bd":4,"ba":1.5,"g":7,"z":"98115","lat":47.6873,"lng":-122.286},{"id":"1796380960","c":0,"p":223000,"s":1670,"bd":3,"ba":2.0,"g":7,"z":"98042","lat":47.3666,"lng":-122.084},{"id":"9407102245","c":0,"p":310000,"s":1350,"bd":3,"ba":2.0,"g":7,"z":"98045","lat":47.446,"lng":-121.776},{"id":"7749500160","c":0,"p":220000,"s":1180,"bd":4,"ba":1.5,"g":7,"z":"98092","lat":47.2966,"lng":-122.19},{"id":"1951500055","c":0,"p":268500,"s":1820,"bd":4,"ba":1.8,"g":7,"z":"98032","lat":47.3743,"lng":-122.295},{"id":"5163700085","c":0,"p":260000,"s":1790,"bd":3,"ba":1.0,"g":7,"z":"98031","lat":47.3887,"lng":-122.22},{"id":"3438503120","c":0,"p":275000,"s":1770,"bd":4,"ba":1.0,"g":7,"z":"98106","lat":47.5393,"lng":-122.351},{"id":"1523049207","c":0,"p":161000,"s":1700,"bd":4,"ba":2.0,"g":7,"z":"98168","lat":47.4758,"lng":-122.288},{"id":"8091411100","c":0,"p":334000,"s":2000,"bd":3,"ba":2.2,"g":7,"z":"98030","lat":47.349,"lng":-122.167},{"id":"8080400177","c":0,"p":520000,"s":1340,"bd":2,"ba":1.8,"g":7,"z":"98122","lat":47.618,"lng":-122.311},{"id":"9828700685","c":0,"p":900000,"s":1540,"bd":3,"ba":1.8,"g":7,"z":"98122","lat":47.6187,"lng":-122.295},{"id":"537000075","c":0,"p":420000,"s":2300,"bd":3,"ba":2.8,"g":7,"z":"98003","lat":47.3293,"lng":-122.306},{"id":"2883200160","c":0,"p":595000,"s":2020,"bd":4,"ba":2.0,"g":7,"z":"98115","lat":47.6831,"lng":-122.329},{"id":"7905200381","c":0,"p":483000,"s":1400,"bd":2,"ba":1.8,"g":7,"z":"98116","lat":47.5705,"lng":-122.392},{"id":"8911000030","c":0,"p":355000,"s":1240,"bd":3,"ba":1.0,"g":7,"z":"98133","lat":47.7115,"lng":-122.355},{"id":"224069105","c":0,"p":650100,"s":1750,"bd":2,"ba":1.0,"g":7,"z":"98075","lat":47.5946,"lng":-122.006},{"id":"821049191","c":0,"p":285000,"s":1380,"bd":3,"ba":1.5,"g":7,"z":"98003","lat":47.3204,"lng":-122.322},{"id":"301400320","c":0,"p":255900,"s":1489,"bd":3,"ba":2.5,"g":7,"z":"98002","lat":47.3452,"lng":-122.217},{"id":"8016250060","c":0,"p":255000,"s":1610,"bd":3,"ba":2.5,"g":7,"z":"98030","lat":47.3657,"lng":-122.173},{"id":"8029550020","c":0,"p":431000,"s":2300,"bd":4,"ba":2.5,"g":7,"z":"98056","lat":47.5125,"lng":-122.192},{"id":"6127010320","c":0,"p":536000,"s":1900,"bd":3,"ba":2.5,"g":7,"z":"98075","lat":47.5941,"lng":-122.004},{"id":"6806100340","c":0,"p":290000,"s":2020,"bd":3,"ba":2.5,"g":7,"z":"98058","lat":47.4659,"lng":-122.144},{"id":"7399300780","c":0,"p":337500,"s":1530,"bd":3,"ba":2.2,"g":7,"z":"98055","lat":47.462,"lng":-122.188},{"id":"1377800135","c":0,"p":676000,"s":1730,"bd":3,"ba":2.0,"g":7,"z":"98199","lat":47.6462,"lng":-122.403},{"id":"2571910380","c":0,"p":289000,"s":1680,"bd":3,"ba":2.0,"g":7,"z":"98022","lat":47.1969,"lng":-122.011},{"id":"8635700025","c":0,"p":522000,"s":1630,"bd":3,"ba":1.8,"g":7,"z":"98033","lat":47.68,"lng":-122.165},{"id":"2916610150","c":0,"p":274950,"s":1410,"bd":3,"ba":2.0,"g":7,"z":"98042","lat":47.3654,"lng":-122.076},{"id":"3204300225","c":0,"p":508000,"s":1200,"bd":2,"ba":1.0,"g":7,"z":"98112","lat":47.6304,"lng":-122.301},{"id":"2475200140","c":0,"p":370000,"s":1680,"bd":3,"ba":2.0,"g":7,"z":"98055","lat":47.4734,"lng":-122.186},{"id":"9423400193","c":0,"p":473000,"s":1050,"bd":3,"ba":2.8,"g":7,"z":"98125","lat":47.7163,"lng":-122.303},{"id":"7376300060","c":0,"p":465750,"s":1260,"bd":3,"ba":1.5,"g":7,"z":"98008","lat":47.6357,"lng":-122.123},{"id":"8669160010","c":0,"p":292500,"s":2095,"bd":3,"ba":2.5,"g":7,"z":"98002","lat":47.3523,"lng":-122.213},{"id":"424069096","c":0,"p":460000,"s":1400,"bd":3,"ba":1.8,"g":7,"z":"98075","lat":47.5926,"lng":-122.047},{"id":"148000680","c":0,"p":530000,"s":1660,"bd":3,"ba":1.8,"g":7,"z":"98116","lat":47.5734,"lng":-122.412},{"id":"1545800730","c":0,"p":269950,"s":1320,"bd":2,"ba":1.8,"g":7,"z":"98038","lat":47.3634,"lng":-122.052},{"id":"8807900236","c":0,"p":430000,"s":630,"bd":1,"ba":1.0,"g":7,"z":"98109","lat":47.6342,"lng":-122.342},{"id":"1222069094","c":0,"p":385000,"s":1350,"bd":3,"ba":1.8,"g":7,"z":"98038","lat":47.4058,"lng":-121.994},{"id":"8898700880","c":0,"p":295000,"s":1590,"bd":2,"ba":2.0,"g":7,"z":"98055","lat":47.459,"lng":-122.205},{"id":"4031700210","c":0,"p":220000,"s":1600,"bd":3,"ba":1.5,"g":7,"z":"98001","lat":47.2925,"lng":-122.284},{"id":"5557800010","c":0,"p":261350,"s":1390,"bd":3,"ba":1.8,"g":7,"z":"98023","lat":47.3208,"lng":-122.337},{"id":"2492200256","c":0,"p":357500,"s":1000,"bd":3,"ba":1.0,"g":7,"z":"98126","lat":47.5351,"lng":-122.381},{"id":"2423020260","c":0,"p":461000,"s":1850,"bd":3,"ba":2.2,"g":7,"z":"98033","lat":47.7011,"lng":-122.171},{"id":"3523069060","c":0,"p":290000,"s":1340,"bd":3,"ba":1.8,"g":7,"z":"98038","lat":47.4379,"lng":-122.011},{"id":"7577700070","c":0,"p":577000,"s":1620,"bd":2,"ba":1.8,"g":7,"z":"98116","lat":47.5703,"lng":-122.385},{"id":"2490200620","c":0,"p":535000,"s":1660,"bd":3,"ba":1.0,"g":7,"z":"98136","lat":47.5323,"lng":-122.383},{"id":"4058801310","c":0,"p":287000,"s":930,"bd":2,"ba":1.0,"g":7,"z":"98178","lat":47.506,"lng":-122.242},{"id":"4037000185","c":0,"p":395000,"s":2060,"bd":4,"ba":1.8,"g":7,"z":"98008","lat":47.6028,"lng":-122.12},{"id":"6844701680","c":0,"p":455000,"s":1260,"bd":2,"ba":1.5,"g":7,"z":"98115","lat":47.6914,"lng":-122.288},{"id":"7227800025","c":0,"p":250000,"s":2300,"bd":3,"ba":3.0,"g":7,"z":"98056","lat":47.5102,"lng":-122.18},{"id":"2130200160","c":0,"p":325000,"s":1350,"bd":3,"ba":2.0,"g":7,"z":"98019","lat":47.7313,"lng":-121.971},{"id":"3332000715","c":0,"p":433000,"s":1550,"bd":4,"ba":1.5,"g":7,"z":"98118","lat":47.5499,"lng":-122.274},{"id":"5469000140","c":0,"p":373000,"s":1590,"bd":4,"ba":1.8,"g":7,"z":"98133","lat":47.7456,"lng":-122.336},{"id":"8864000425","c":0,"p":242000,"s":1580,"bd":3,"ba":1.8,"g":7,"z":"98168","lat":47.4807,"lng":-122.29},{"id":"3359500110","c":0,"p":660000,"s":2550,"bd":2,"ba":2.2,"g":7,"z":"98115","lat":47.6739,"lng":-122.323},{"id":"121029034","c":0,"p":549000,"s":2034,"bd":2,"ba":1.0,"g":7,"z":"98070","lat":47.3312,"lng":-122.503},{"id":"1823049202","c":0,"p":175000,"s":1930,"bd":6,"ba":1.5,"g":7,"z":"98146","lat":47.4869,"lng":-122.34},{"id":"2491200050","c":0,"p":423000,"s":1820,"bd":3,"ba":1.8,"g":7,"z":"98126","lat":47.5233,"lng":-122.378},{"id":"5169700022","c":0,"p":334950,"s":1880,"bd":3,"ba":1.8,"g":7,"z":"98059","lat":47.5089,"lng":-122.155},{"id":"3575303970","c":0,"p":340000,"s":1010,"bd":3,"ba":1.0,"g":7,"z":"98074","lat":47.6169,"lng":-122.062},{"id":"7214820400","c":0,"p":425000,"s":1800,"bd":3,"ba":2.2,"g":7,"z":"98072","lat":47.7584,"lng":-122.145},{"id":"7715800430","c":0,"p":502000,"s":1870,"bd":3,"ba":2.5,"g":7,"z":"98074","lat":47.6269,"lng":-122.06},{"id":"1474000050","c":0,"p":437000,"s":1310,"bd":3,"ba":1.8,"g":7,"z":"98052","lat":47.6844,"lng":-122.111},{"id":"475001295","c":0,"p":750000,"s":1840,"bd":3,"ba":1.5,"g":7,"z":"98107","lat":47.6652,"lng":-122.362},{"id":"1797500435","c":0,"p":570000,"s":1060,"bd":2,"ba":1.0,"g":7,"z":"98115","lat":47.6731,"lng":-122.315},{"id":"7201800280","c":0,"p":409950,"s":1320,"bd":3,"ba":1.8,"g":7,"z":"98052","lat":47.6993,"lng":-122.13},{"id":"5559200020","c":0,"p":248500,"s":1240,"bd":3,"ba":2.0,"g":7,"z":"98023","lat":47.3219,"lng":-122.341},{"id":"1665400025","c":0,"p":259000,"s":1590,"bd":3,"ba":1.8,"g":7,"z":"98166","lat":47.4713,"lng":-122.344},{"id":"3972900195","c":0,"p":315000,"s":1390,"bd":3,"ba":1.0,"g":7,"z":"98155","lat":47.7652,"lng":-122.31},{"id":"7334501250","c":0,"p":325000,"s":1870,"bd":3,"ba":2.5,"g":7,"z":"98045","lat":47.4639,"lng":-121.744},{"id":"7199000290","c":0,"p":525000,"s":2420,"bd":4,"ba":2.0,"g":7,"z":"98052","lat":47.6899,"lng":-122.122},{"id":"3885808035","c":0,"p":619500,"s":1680,"bd":6,"ba":1.5,"g":7,"z":"98033","lat":47.6798,"lng":-122.206},{"id":"2968801366","c":0,"p":350000,"s":1650,"bd":3,"ba":2.8,"g":7,"z":"98166","lat":47.4563,"lng":-122.348},{"id":"126039599","c":0,"p":475000,"s":1800,"bd":4,"ba":2.2,"g":7,"z":"98177","lat":47.7717,"lng":-122.376},{"id":"3250500140","c":0,"p":850000,"s":1400,"bd":3,"ba":1.8,"g":7,"z":"98004","lat":47.6272,"lng":-122.209},{"id":"6145600955","c":0,"p":329000,"s":1120,"bd":4,"ba":1.0,"g":7,"z":"98133","lat":47.7038,"lng":-122.352},{"id":"6817801430","c":0,"p":525000,"s":1790,"bd":3,"ba":2.0,"g":7,"z":"98074","lat":47.6319,"lng":-122.035},{"id":"4036800900","c":0,"p":447000,"s":1310,"bd":3,"ba":1.0,"g":7,"z":"98008","lat":47.6019,"lng":-122.123},{"id":"984220330","c":0,"p":325000,"s":1820,"bd":4,"ba":2.5,"g":7,"z":"98058","lat":47.4333,"lng":-122.168},{"id":"4191500130","c":0,"p":687500,"s":3320,"bd":5,"ba":2.8,"g":7,"z":"98033","lat":47.692,"lng":-122.166},{"id":"6852700476","c":0,"p":752000,"s":1650,"bd":4,"ba":1.5,"g":7,"z":"98102","lat":47.6233,"lng":-122.319},{"id":"1890000250","c":0,"p":710000,"s":1640,"bd":2,"ba":1.5,"g":7,"z":"98105","lat":47.6624,"lng":-122.325},{"id":"2767603535","c":0,"p":600000,"s":1310,"bd":3,"ba":1.8,"g":7,"z":"98107","lat":47.6722,"lng":-122.379},{"id":"2064800880","c":0,"p":301500,"s":1410,"bd":3,"ba":1.0,"g":7,"z":"98056","lat":47.534,"lng":-122.173},{"id":"1441300130","c":0,"p":319000,"s":1610,"bd":3,"ba":2.5,"g":7,"z":"98038","lat":47.3714,"lng":-122.054},{"id":"4222500410","c":0,"p":267000,"s":2000,"bd":4,"ba":1.8,"g":7,"z":"98003","lat":47.3428,"lng":-122.303},{"id":"1232000950","c":0,"p":532000,"s":1110,"bd":3,"ba":1.0,"g":7,"z":"98117","lat":47.6857,"lng":-122.378},{"id":"6300000368","c":0,"p":248500,"s":880,"bd":2,"ba":1.5,"g":7,"z":"98133","lat":47.7063,"lng":-122.342},{"id":"4099500935","c":0,"p":705000,"s":2180,"bd":3,"ba":1.8,"g":7,"z":"98040","lat":47.5885,"lng":-122.248},{"id":"2201500680","c":0,"p":501000,"s":1480,"bd":3,"ba":1.8,"g":7,"z":"98006","lat":47.5718,"lng":-122.136},{"id":"1523300141","c":0,"p":402101,"s":1020,"bd":2,"ba":0.8,"g":7,"z":"98144","lat":47.5944,"lng":-122.299},{"id":"2589300065","c":0,"p":329900,"s":1670,"bd":3,"ba":1.8,"g":7,"z":"98118","lat":47.5362,"lng":-122.271},{"id":"586470350","c":0,"p":342000,"s":2430,"bd":3,"ba":2.5,"g":7,"z":"98030","lat":47.3718,"lng":-122.168},{"id":"9310300211","c":0,"p":284000,"s":1080,"bd":3,"ba":1.0,"g":7,"z":"98133","lat":47.7401,"lng":-122.348},{"id":"1245001739","c":0,"p":550000,"s":960,"bd":3,"ba":1.0,"g":7,"z":"98033","lat":47.6891,"lng":-122.203},{"id":"2313900810","c":0,"p":610000,"s":2220,"bd":4,"ba":2.0,"g":7,"z":"98116","lat":47.5723,"lng":-122.382},{"id":"3423600060","c":0,"p":665000,"s":2280,"bd":4,"ba":1.8,"g":7,"z":"98115","lat":47.6754,"lng":-122.3},{"id":"3885805640","c":0,"p":625000,"s":1300,"bd":3,"ba":1.5,"g":7,"z":"98033","lat":47.6821,"lng":-122.196},{"id":"7760400480","c":0,"p":288000,"s":1370,"bd":3,"ba":2.5,"g":7,"z":"98042","lat":47.3717,"lng":-122.073},{"id":"2895550190","c":0,"p":245000,"s":1700,"bd":4,"ba":2.5,"g":7,"z":"98001","lat":47.3303,"lng":-122.268},{"id":"3581000340","c":0,"p":340000,"s":1230,"bd":4,"ba":1.0,"g":7,"z":"98034","lat":47.7269,"lng":-122.24},{"id":"7349400420","c":0,"p":286285,"s":1980,"bd":4,"ba":2.2,"g":7,"z":"98002","lat":47.3207,"lng":-122.209},{"id":"7437101030","c":0,"p":265000,"s":1640,"bd":3,"ba":2.5,"g":7,"z":"98038","lat":47.3505,"lng":-122.027},{"id":"2517000700","c":0,"p":325000,"s":2540,"bd":3,"ba":2.5,"g":7,"z":"98042","lat":47.3989,"lng":-122.164},{"id":"8641500280","c":0,"p":270000,"s":840,"bd":2,"ba":1.5,"g":7,"z":"98115","lat":47.6955,"lng":-122.304},{"id":"2891000610","c":0,"p":148900,"s":1700,"bd":4,"ba":1.8,"g":7,"z":"98002","lat":47.3252,"lng":-122.208},{"id":"114700150","c":0,"p":236000,"s":1560,"bd":3,"ba":1.8,"g":7,"z":"98023","lat":47.2917,"lng":-122.366},{"id":"4154304505","c":0,"p":435000,"s":2240,"bd":2,"ba":1.0,"g":7,"z":"98118","lat":47.5631,"lng":-122.271},{"id":"1219000043","c":0,"p":315000,"s":2320,"bd":5,"ba":1.8,"g":7,"z":"98166","lat":47.4631,"lng":-122.341},{"id":"2268000500","c":0,"p":229900,"s":1440,"bd":3,"ba":1.0,"g":7,"z":"98003","lat":47.2738,"lng":-122.3},{"id":"7867500021","c":0,"p":470000,"s":1760,"bd":3,"ba":1.5,"g":7,"z":"98118","lat":47.5514,"lng":-122.266},{"id":"1931300815","c":0,"p":550000,"s":980,"bd":2,"ba":1.0,"g":7,"z":"98103","lat":47.6569,"lng":-122.348},{"id":"100300280","c":0,"p":355000,"s":1430,"bd":3,"ba":2.2,"g":7,"z":"98059","lat":47.4867,"lng":-122.152},{"id":"8830400135","c":0,"p":264950,"s":1470,"bd":3,"ba":1.5,"g":7,"z":"98030","lat":47.3632,"lng":-122.188},{"id":"6143600580","c":0,"p":184000,"s":1490,"bd":3,"ba":1.8,"g":7,"z":"98001","lat":47.3075,"lng":-122.284},{"id":"1995200320","c":0,"p":280000,"s":1220,"bd":3,"ba":2.2,"g":7,"z":"98115","lat":47.6952,"lng":-122.326},{"id":"2459900040","c":0,"p":587000,"s":3610,"bd":5,"ba":3.5,"g":7,"z":"98014","lat":47.6832,"lng":-121.907},{"id":"3760100100","c":0,"p":425000,"s":1340,"bd":5,"ba":2.8,"g":7,"z":"98034","lat":47.709,"lng":-122.214},{"id":"2880100240","c":0,"p":439950,"s":1210,"bd":2,"ba":1.8,"g":7,"z":"98117","lat":47.6789,"lng":-122.365},{"id":"3832150190","c":0,"p":263000,"s":1570,"bd":3,"ba":1.8,"g":7,"z":"98031","lat":47.3876,"lng":-122.216},{"id":"1523059103","c":0,"p":390000,"s":2570,"bd":4,"ba":2.5,"g":7,"z":"98059","lat":47.4833,"lng":-122.157},{"id":"7524100280","c":0,"p":259000,"s":1490,"bd":4,"ba":1.5,"g":7,"z":"98198","lat":47.3684,"lng":-122.318},{"id":"3885805325","c":0,"p":710000,"s":2090,"bd":4,"ba":2.8,"g":7,"z":"98033","lat":47.6829,"lng":-122.195},{"id":"6099400140","c":0,"p":230000,"s":1920,"bd":5,"ba":1.0,"g":7,"z":"98168","lat":47.4756,"lng":-122.294},{"id":"2810600022","c":0,"p":335000,"s":1060,"bd":2,"ba":1.8,"g":7,"z":"98136","lat":47.5426,"lng":-122.388},{"id":"2201500450","c":0,"p":473000,"s":1280,"bd":3,"ba":1.0,"g":7,"z":"98006","lat":47.5716,"lng":-122.139},{"id":"2770604665","c":0,"p":612125,"s":1670,"bd":2,"ba":1.5,"g":7,"z":"98119","lat":47.6517,"lng":-122.374},{"id":"7228501805","c":0,"p":739000,"s":4000,"bd":6,"ba":4.5,"g":7,"z":"98122","lat":47.6146,"lng":-122.306},{"id":"1422700040","c":0,"p":183000,"s":1170,"bd":3,"ba":1.0,"g":7,"z":"98188","lat":47.4685,"lng":-122.282},{"id":"1423069063","c":0,"p":464950,"s":2230,"bd":4,"ba":2.5,"g":7,"z":"98027","lat":47.4754,"lng":-122.007},{"id":"1773100275","c":0,"p":205000,"s":830,"bd":2,"ba":1.5,"g":7,"z":"98106","lat":47.5604,"lng":-122.363},{"id":"5249804760","c":1,"p":479500,"s":930,"bd":2,"ba":1.0,"g":6,"z":"98118","lat":47.5598,"lng":-122.266},{"id":"3971701300","c":1,"p":255000,"s":1360,"bd":2,"ba":1.0,"g":6,"z":"98155","lat":47.7689,"lng":-122.315},{"id":"9393700110","c":1,"p":430000,"s":1360,"bd":3,"ba":2.0,"g":6,"z":"98116","lat":47.5587,"lng":-122.393},{"id":"7891600260","c":1,"p":175000,"s":660,"bd":2,"ba":1.0,"g":6,"z":"98106","lat":47.5664,"lng":-122.364},{"id":"2781250560","c":1,"p":234000,"s":1200,"bd":2,"ba":2.0,"g":6,"z":"98038","lat":47.349,"lng":-122.025},{"id":"1917300105","c":1,"p":216500,"s":1170,"bd":3,"ba":1.0,"g":6,"z":"98022","lat":47.2109,"lng":-121.987},{"id":"1788700230","c":1,"p":191000,"s":800,"bd":3,"ba":1.5,"g":6,"z":"98023","lat":47.3266,"lng":-122.348},{"id":"3876800580","c":1,"p":351000,"s":1430,"bd":4,"ba":1.0,"g":6,"z":"98072","lat":47.7417,"lng":-122.172},{"id":"254000735","c":1,"p":329000,"s":1140,"bd":3,"ba":1.0,"g":6,"z":"98146","lat":47.5122,"lng":-122.383},{"id":"4310701330","c":1,"p":415000,"s":1220,"bd":3,"ba":1.5,"g":6,"z":"98103","lat":47.6981,"lng":-122.341},{"id":"402000115","c":1,"p":263500,"s":1540,"bd":3,"ba":1.8,"g":6,"z":"98118","lat":47.5305,"lng":-122.277},{"id":"2856102280","c":1,"p":538000,"s":1400,"bd":3,"ba":1.8,"g":6,"z":"98117","lat":47.6793,"lng":-122.393},{"id":"4435000145","c":1,"p":263000,"s":1340,"bd":4,"ba":1.8,"g":6,"z":"98188","lat":47.4514,"lng":-122.287},{"id":"2887701251","c":1,"p":392800,"s":740,"bd":2,"ba":1.0,"g":6,"z":"98115","lat":47.688,"lng":-122.308},{"id":"522039106","c":1,"p":160000,"s":1210,"bd":3,"ba":1.0,"g":6,"z":"98070","lat":47.4208,"lng":-122.445},{"id":"3423049269","c":1,"p":225000,"s":1950,"bd":4,"ba":1.5,"g":6,"z":"98188","lat":47.4364,"lng":-122.282},{"id":"7812800310","c":1,"p":260000,"s":1120,"bd":2,"ba":1.0,"g":6,"z":"98178","lat":47.4979,"lng":-122.241},{"id":"8151600701","c":1,"p":234000,"s":870,"bd":2,"ba":1.0,"g":6,"z":"98146","lat":47.5038,"lng":-122.364},{"id":"6668900010","c":1,"p":254950,"s":700,"bd":2,"ba":1.0,"g":6,"z":"98155","lat":47.7492,"lng":-122.311},{"id":"2120069003","c":1,"p":220000,"s":1000,"bd":3,"ba":1.0,"g":6,"z":"98022","lat":47.2099,"lng":-122.043},{"id":"4302200336","c":1,"p":300000,"s":930,"bd":3,"ba":1.0,"g":6,"z":"98106","lat":47.5256,"lng":-122.357},{"id":"1422069069","c":1,"p":426500,"s":2100,"bd":4,"ba":2.8,"g":6,"z":"98038","lat":47.399,"lng":-122.011},{"id":"3145600250","c":1,"p":190000,"s":670,"bd":2,"ba":1.0,"g":6,"z":"98118","lat":47.5546,"lng":-122.274},{"id":"1623049133","c":1,"p":205000,"s":2200,"bd":4,"ba":2.0,"g":6,"z":"98168","lat":47.481,"lng":-122.292},{"id":"8651400750","c":1,"p":209950,"s":1100,"bd":3,"ba":1.8,"g":6,"z":"98042","lat":47.3625,"lng":-122.084},{"id":"7849201020","c":1,"p":335000,"s":1950,"bd":4,"ba":1.8,"g":6,"z":"98065","lat":47.5232,"lng":-121.821},{"id":"84000245","c":1,"p":190000,"s":1100,"bd":3,"ba":1.8,"g":6,"z":"98146","lat":47.4864,"lng":-122.337},{"id":"2856101845","c":1,"p":335000,"s":1000,"bd":2,"ba":1.8,"g":6,"z":"98117","lat":47.6787,"lng":-122.391},{"id":"7305300090","c":1,"p":338000,"s":1530,"bd":4,"ba":1.8,"g":6,"z":"98155","lat":47.7557,"lng":-122.328},{"id":"2724049185","c":1,"p":175000,"s":1430,"bd":3,"ba":1.8,"g":6,"z":"98118","lat":47.5388,"lng":-122.275},{"id":"6855700080","c":1,"p":294950,"s":1240,"bd":3,"ba":1.0,"g":6,"z":"98125","lat":47.7277,"lng":-122.308},{"id":"1397300055","c":1,"p":268500,"s":790,"bd":2,"ba":1.0,"g":6,"z":"98133","lat":47.7511,"lng":-122.352},{"id":"126059021","c":1,"p":200000,"s":1020,"bd":4,"ba":1.0,"g":6,"z":"98072","lat":47.7617,"lng":-122.11},{"id":"1324079029","c":1,"p":200000,"s":960,"bd":3,"ba":1.0,"g":6,"z":"98024","lat":47.5621,"lng":-121.862},{"id":"7950302345","c":1,"p":345000,"s":1010,"bd":3,"ba":1.0,"g":6,"z":"98118","lat":47.5657,"lng":-122.285},{"id":"6131600285","c":1,"p":195500,"s":1230,"bd":4,"ba":1.0,"g":6,"z":"98002","lat":47.3231,"lng":-122.219},{"id":"1922059135","c":1,"p":250000,"s":1130,"bd":2,"ba":2.0,"g":6,"z":"98030","lat":47.3839,"lng":-122.225},{"id":"4059400190","c":1,"p":225000,"s":800,"bd":2,"ba":1.0,"g":6,"z":"98178","lat":47.5001,"lng":-122.242},{"id":"2781270080","c":1,"p":249900,"s":1470,"bd":2,"ba":2.0,"g":6,"z":"98038","lat":47.3502,"lng":-122.02},{"id":"1440500020","c":1,"p":350000,"s":1470,"bd":3,"ba":1.8,"g":6,"z":"98155","lat":47.7524,"lng":-122.323},{"id":"6197200021","c":1,"p":144000,"s":980,"bd":3,"ba":1.0,"g":6,"z":"98058","lat":47.4411,"lng":-122.186},{"id":"2685600090","c":1,"p":345000,"s":1030,"bd":3,"ba":1.5,"g":6,"z":"98108","lat":47.5492,"lng":-122.3},{"id":"1446401290","c":1,"p":214950,"s":1400,"bd":3,"ba":1.0,"g":6,"z":"98168","lat":47.4845,"lng":-122.331},{"id":"3210200395","c":1,"p":279900,"s":1280,"bd":3,"ba":1.0,"g":6,"z":"98023","lat":47.3215,"lng":-122.399},{"id":"7549801140","c":1,"p":260000,"s":750,"bd":2,"ba":1.0,"g":6,"z":"98108","lat":47.552,"lng":-122.31},{"id":"1016000080","c":1,"p":345000,"s":1620,"bd":3,"ba":1.0,"g":6,"z":"98059","lat":47.474,"lng":-122.125},{"id":"3751600176","c":1,"p":196000,"s":1000,"bd":3,"ba":1.5,"g":6,"z":"98001","lat":47.2976,"lng":-122.271},{"id":"2171400218","c":1,"p":245000,"s":1280,"bd":4,"ba":1.5,"g":6,"z":"98178","lat":47.4949,"lng":-122.255},{"id":"3432500200","c":1,"p":329999,"s":1150,"bd":3,"ba":1.0,"g":6,"z":"98155","lat":47.7447,"lng":-122.313},{"id":"3996900160","c":1,"p":277000,"s":770,"bd":2,"ba":1.0,"g":6,"z":"98155","lat":47.7458,"lng":-122.298},{"id":"7812800681","c":1,"p":166000,"s":870,"bd":2,"ba":1.0,"g":6,"z":"98178","lat":47.4955,"lng":-122.239},{"id":"3348401740","c":1,"p":188000,"s":1120,"bd":2,"ba":1.5,"g":6,"z":"98178","lat":47.5024,"lng":-122.271},{"id":"1180008315","c":1,"p":212000,"s":1040,"bd":3,"ba":1.0,"g":6,"z":"98178","lat":47.492,"lng":-122.224},{"id":"323059208","c":1,"p":320000,"s":1880,"bd":3,"ba":2.0,"g":6,"z":"98059","lat":47.5091,"lng":-122.144},{"id":"3679401110","c":1,"p":332000,"s":1000,"bd":2,"ba":1.0,"g":6,"z":"98108","lat":47.5619,"lng":-122.315},{"id":"9407100500","c":1,"p":273000,"s":1540,"bd":3,"ba":1.8,"g":6,"z":"98045","lat":47.4451,"lng":-121.763},{"id":"8651410330","c":1,"p":215150,"s":920,"bd":3,"ba":1.0,"g":6,"z":"98042","lat":47.3654,"lng":-122.082},{"id":"3584800010","c":1,"p":550000,"s":880,"bd":3,"ba":1.0,"g":6,"z":"98033","lat":47.6855,"lng":-122.199},{"id":"2822059181","c":1,"p":306000,"s":1460,"bd":5,"ba":2.0,"g":6,"z":"98030","lat":47.3714,"lng":-122.177},{"id":"2641800015","c":1,"p":158800,"s":960,"bd":3,"ba":1.0,"g":6,"z":"98146","lat":47.5006,"lng":-122.334},{"id":"123039128","c":1,"p":325000,"s":1400,"bd":4,"ba":1.0,"g":6,"z":"98106","lat":47.5166,"lng":-122.361},{"id":"3969300030","c":1,"p":165000,"s":1000,"bd":4,"ba":1.0,"g":6,"z":"98178","lat":47.4897,"lng":-122.24},{"id":"8121100015","c":1,"p":550000,"s":1070,"bd":3,"ba":1.0,"g":6,"z":"98118","lat":47.5683,"lng":-122.285},{"id":"7454001120","c":1,"p":285950,"s":710,"bd":2,"ba":1.0,"g":6,"z":"98146","lat":47.5122,"lng":-122.374},{"id":"9278200095","c":1,"p":465000,"s":900,"bd":3,"ba":1.5,"g":6,"z":"98116","lat":47.5751,"lng":-122.393},{"id":"8649401270","c":1,"p":167000,"s":780,"bd":1,"ba":1.0,"g":6,"z":"98014","lat":47.713,"lng":-121.315},{"id":"1446403617","c":1,"p":123000,"s":1050,"bd":2,"ba":1.0,"g":6,"z":"98168","lat":47.4828,"lng":-122.324},{"id":"2923059064","c":1,"p":199000,"s":1140,"bd":2,"ba":1.0,"g":6,"z":"98055","lat":47.4521,"lng":-122.196},{"id":"6303400150","c":1,"p":255000,"s":1160,"bd":3,"ba":1.0,"g":6,"z":"98146","lat":47.5097,"lng":-122.357},{"id":"8651430220","c":1,"p":183000,"s":870,"bd":3,"ba":1.0,"g":6,"z":"98042","lat":47.3702,"lng":-122.078},{"id":"8658303585","c":1,"p":252500,"s":900,"bd":2,"ba":1.0,"g":6,"z":"98014","lat":47.6481,"lng":-121.916},{"id":"8651411260","c":1,"p":128000,"s":980,"bd":2,"ba":1.0,"g":6,"z":"98042","lat":47.3674,"lng":-122.081},{"id":"1821059067","c":1,"p":200000,"s":1150,"bd":3,"ba":1.0,"g":6,"z":"98002","lat":47.3101,"lng":-122.212},{"id":"3298200790","c":1,"p":475000,"s":1270,"bd":3,"ba":1.0,"g":6,"z":"98008","lat":47.6175,"lng":-122.118},{"id":"1788700160","c":1,"p":195000,"s":1260,"bd":3,"ba":1.0,"g":6,"z":"98023","lat":47.3274,"lng":-122.348},{"id":"6855700115","c":1,"p":357250,"s":1400,"bd":3,"ba":1.5,"g":6,"z":"98125","lat":47.7273,"lng":-122.309},{"id":"4365200860","c":1,"p":385200,"s":1550,"bd":4,"ba":1.0,"g":6,"z":"98126","lat":47.5222,"lng":-122.375},{"id":"3501100050","c":1,"p":125000,"s":1230,"bd":3,"ba":1.0,"g":6,"z":"98117","lat":47.6941,"lng":-122.365},{"id":"8651410120","c":1,"p":225500,"s":1100,"bd":3,"ba":1.0,"g":6,"z":"98042","lat":47.3643,"lng":-122.081},{"id":"2391601010","c":1,"p":425000,"s":1240,"bd":3,"ba":1.0,"g":6,"z":"98116","lat":47.564,"lng":-122.398},{"id":"7575500040","c":1,"p":180000,"s":1010,"bd":3,"ba":1.0,"g":6,"z":"98022","lat":47.1955,"lng":-121.999},{"id":"7229700105","c":1,"p":172500,"s":1510,"bd":2,"ba":2.0,"g":6,"z":"98059","lat":47.481,"lng":-122.116},{"id":"5381600110","c":1,"p":253779,"s":2030,"bd":4,"ba":2.0,"g":6,"z":"98188","lat":47.4459,"lng":-122.272},{"id":"1443500120","c":1,"p":310000,"s":750,"bd":2,"ba":1.0,"g":6,"z":"98118","lat":47.5324,"lng":-122.272},{"id":"4060000440","c":1,"p":241000,"s":880,"bd":3,"ba":1.0,"g":6,"z":"98178","lat":47.4995,"lng":-122.248},{"id":"7972602080","c":1,"p":312000,"s":1190,"bd":4,"ba":1.0,"g":6,"z":"98106","lat":47.5281,"lng":-122.348},{"id":"3031200120","c":1,"p":255000,"s":960,"bd":4,"ba":1.8,"g":6,"z":"98118","lat":47.5372,"lng":-122.289},{"id":"1257200020","c":1,"p":555000,"s":1250,"bd":3,"ba":1.0,"g":6,"z":"98115","lat":47.6757,"lng":-122.327},{"id":"9353300220","c":1,"p":285000,"s":950,"bd":3,"ba":1.0,"g":6,"z":"98059","lat":47.4899,"lng":-122.133},{"id":"7221400320","c":1,"p":213000,"s":750,"bd":2,"ba":1.0,"g":6,"z":"98055","lat":47.475,"lng":-122.199},{"id":"795000865","c":1,"p":235000,"s":1020,"bd":3,"ba":1.0,"g":6,"z":"98168","lat":47.5042,"lng":-122.329},{"id":"7571200110","c":1,"p":328000,"s":700,"bd":2,"ba":1.0,"g":6,"z":"98116","lat":47.5577,"lng":-122.391},{"id":"7327902612","c":1,"p":269500,"s":930,"bd":2,"ba":1.0,"g":6,"z":"98108","lat":47.5321,"lng":-122.323},{"id":"3797001900","c":1,"p":360000,"s":1360,"bd":3,"ba":1.5,"g":6,"z":"98103","lat":47.6846,"lng":-122.345},{"id":"2968801605","c":1,"p":285000,"s":1440,"bd":4,"ba":1.8,"g":6,"z":"98166","lat":47.4571,"lng":-122.345},{"id":"8029200190","c":1,"p":227000,"s":1280,"bd":3,"ba":1.0,"g":6,"z":"98022","lat":47.2094,"lng":-121.996},{"id":"2968801240","c":1,"p":211000,"s":1350,"bd":3,"ba":1.5,"g":6,"z":"98166","lat":47.4565,"lng":-122.35},{"id":"4239400740","c":1,"p":192950,"s":1170,"bd":3,"ba":1.0,"g":6,"z":"98092","lat":47.3155,"lng":-122.182},{"id":"1723059050","c":1,"p":290300,"s":860,"bd":2,"ba":1.0,"g":6,"z":"98055","lat":47.4836,"lng":-122.204},{"id":"2420069242","c":1,"p":175000,"s":740,"bd":2,"ba":1.0,"g":6,"z":"98022","lat":47.2088,"lng":-121.992},{"id":"5053300015","c":1,"p":212000,"s":1070,"bd":2,"ba":1.0,"g":6,"z":"98108","lat":47.5434,"lng":-122.298},{"id":"4045500130","c":1,"p":154000,"s":1040,"bd":2,"ba":1.0,"g":6,"z":"98014","lat":47.6981,"lng":-121.875},{"id":"7452500340","c":1,"p":265000,"s":1080,"bd":3,"ba":1.0,"g":6,"z":"98126","lat":47.5209,"lng":-122.374},{"id":"8802400896","c":1,"p":204995,"s":970,"bd":2,"ba":1.0,"g":6,"z":"98031","lat":47.4025,"lng":-122.201},{"id":"5536100010","c":1,"p":1050000,"s":1330,"bd":4,"ba":1.0,"g":6,"z":"98004","lat":47.6223,"lng":-122.208},{"id":"3550800040","c":1,"p":223000,"s":940,"bd":3,"ba":1.0,"g":6,"z":"98146","lat":47.5107,"lng":-122.345},{"id":"3192000080","c":1,"p":205000,"s":1210,"bd":3,"ba":1.0,"g":6,"z":"98146","lat":47.4873,"lng":-122.345},{"id":"3821200050","c":1,"p":119500,"s":1170,"bd":3,"ba":1.0,"g":6,"z":"98019","lat":47.7346,"lng":-121.983},{"id":"3336000791","c":1,"p":325000,"s":950,"bd":3,"ba":1.0,"g":6,"z":"98118","lat":47.5273,"lng":-122.265},{"id":"952004745","c":1,"p":400800,"s":1070,"bd":4,"ba":1.0,"g":6,"z":"98126","lat":47.564,"lng":-122.379},{"id":"7334600280","c":1,"p":349900,"s":1550,"bd":2,"ba":1.8,"g":6,"z":"98045","lat":47.4701,"lng":-121.744},{"id":"2988800011","c":1,"p":244000,"s":2000,"bd":3,"ba":1.0,"g":6,"z":"98178","lat":47.4816,"lng":-122.233},{"id":"7550800915","c":1,"p":417200,"s":1000,"bd":2,"ba":1.0,"g":6,"z":"98107","lat":47.6742,"lng":-122.396},{"id":"3374300030","c":1,"p":500000,"s":1770,"bd":4,"ba":2.5,"g":6,"z":"98034","lat":47.719,"lng":-122.173},{"id":"3432500210","c":1,"p":325000,"s":1130,"bd":2,"ba":1.0,"g":6,"z":"98155","lat":47.745,"lng":-122.313},{"id":"7305300760","c":1,"p":317500,"s":1220,"bd":2,"ba":1.5,"g":6,"z":"98155","lat":47.7534,"lng":-122.324},{"id":"3352400351","c":1,"p":200000,"s":1480,"bd":3,"ba":1.0,"g":6,"z":"98178","lat":47.5045,"lng":-122.27},{"id":"1591600676","c":1,"p":246000,"s":990,"bd":3,"ba":1.0,"g":6,"z":"98146","lat":47.5022,"lng":-122.36},{"id":"3131201563","c":1,"p":435000,"s":1060,"bd":2,"ba":1.0,"g":6,"z":"98105","lat":47.6578,"lng":-122.324},{"id":"5414100040","c":1,"p":299950,"s":800,"bd":2,"ba":1.0,"g":6,"z":"98118","lat":47.5602,"lng":-122.292},{"id":"1498301672","c":1,"p":467000,"s":2080,"bd":5,"ba":2.0,"g":6,"z":"98144","lat":47.5858,"lng":-122.308},{"id":"3448000270","c":1,"p":398500,"s":1200,"bd":3,"ba":1.0,"g":6,"z":"98125","lat":47.7163,"lng":-122.299},{"id":"7129304540","c":1,"p":133000,"s":1430,"bd":5,"ba":2.0,"g":6,"z":"98118","lat":47.5192,"lng":-122.266},{"id":"886000090","c":1,"p":395000,"s":700,"bd":2,"ba":1.0,"g":6,"z":"98108","lat":47.5348,"lng":-122.295},{"id":"8122600165","c":1,"p":273000,"s":1500,"bd":3,"ba":1.0,"g":6,"z":"98126","lat":47.5365,"lng":-122.368},{"id":"3826000550","c":1,"p":245000,"s":2000,"bd":5,"ba":1.5,"g":6,"z":"98168","lat":47.4945,"lng":-122.304},{"id":"9297301015","c":1,"p":277284,"s":1030,"bd":3,"ba":1.8,"g":6,"z":"98126","lat":47.566,"lng":-122.373},{"id":"4053200410","c":1,"p":273000,"s":2180,"bd":4,"ba":1.5,"g":6,"z":"98042","lat":47.3187,"lng":-122.081},{"id":"2422049104","c":1,"p":85000,"s":830,"bd":2,"ba":1.0,"g":6,"z":"98032","lat":47.3813,"lng":-122.243},{"id":"1430800258","c":1,"p":244000,"s":910,"bd":3,"ba":1.0,"g":6,"z":"98166","lat":47.4729,"lng":-122.352},{"id":"423049067","c":1,"p":160000,"s":930,"bd":2,"ba":1.0,"g":6,"z":"98168","lat":47.507,"lng":-122.302},{"id":"3333002450","c":1,"p":165000,"s":850,"bd":1,"ba":1.0,"g":6,"z":"98118","lat":47.5427,"lng":-122.288},{"id":"3222049024","c":1,"p":361000,"s":1100,"bd":3,"ba":1.0,"g":6,"z":"98198","lat":47.344,"lng":-122.331},{"id":"7454000470","c":1,"p":412500,"s":1530,"bd":3,"ba":1.8,"g":6,"z":"98126","lat":47.516,"lng":-122.375},{"id":"3024079069","c":1,"p":371000,"s":1960,"bd":4,"ba":1.0,"g":6,"z":"98027","lat":47.5418,"lng":-121.962},{"id":"2730000270","c":1,"p":178500,"s":900,"bd":3,"ba":1.0,"g":6,"z":"98001","lat":47.2883,"lng":-122.272},{"id":"3876800710","c":1,"p":350000,"s":1000,"bd":3,"ba":1.8,"g":6,"z":"98072","lat":47.7417,"lng":-122.172},{"id":"8651401270","c":1,"p":203000,"s":840,"bd":3,"ba":1.0,"g":6,"z":"98042","lat":47.3637,"lng":-122.083},{"id":"7443000985","c":1,"p":475000,"s":2010,"bd":5,"ba":2.5,"g":6,"z":"98119","lat":47.6522,"lng":-122.366},{"id":"7686202635","c":1,"p":185000,"s":900,"bd":2,"ba":1.0,"g":6,"z":"98198","lat":47.4217,"lng":-122.317},{"id":"3019300090","c":1,"p":535000,"s":2560,"bd":2,"ba":3.5,"g":6,"z":"98107","lat":47.6681,"lng":-122.368},{"id":"7625701830","c":1,"p":521000,"s":1840,"bd":3,"ba":2.0,"g":6,"z":"98136","lat":47.5508,"lng":-122.392},{"id":"5128000010","c":1,"p":99000,"s":960,"bd":2,"ba":1.0,"g":6,"z":"98058","lat":47.4698,"lng":-122.166},{"id":"7889601320","c":1,"p":115000,"s":940,"bd":2,"ba":1.0,"g":6,"z":"98146","lat":47.4907,"lng":-122.336},{"id":"4365200620","c":1,"p":394000,"s":1450,"bd":3,"ba":1.0,"g":6,"z":"98126","lat":47.5212,"lng":-122.371},{"id":"1450100420","c":1,"p":205000,"s":960,"bd":3,"ba":1.0,"g":6,"z":"98002","lat":47.2891,"lng":-122.221},{"id":"9393700140","c":1,"p":420000,"s":1150,"bd":3,"ba":1.0,"g":6,"z":"98116","lat":47.5588,"lng":-122.392},{"id":"8945100530","c":1,"p":172380,"s":970,"bd":3,"ba":1.0,"g":6,"z":"98023","lat":47.3078,"lng":-122.365},{"id":"9265700005","c":1,"p":395000,"s":1740,"bd":3,"ba":1.8,"g":6,"z":"98177","lat":47.762,"lng":-122.362},{"id":"9476200680","c":1,"p":226000,"s":1490,"bd":3,"ba":1.8,"g":6,"z":"98056","lat":47.4917,"lng":-122.188},{"id":"255450410","c":2,"p":339989,"s":2060,"bd":3,"ba":2.5,"g":8,"z":"98038","lat":47.3706,"lng":-122.018},{"id":"7811210200","c":2,"p":542500,"s":1750,"bd":4,"ba":2.2,"g":8,"z":"98005","lat":47.5909,"lng":-122.158},{"id":"622079089","c":2,"p":375000,"s":2040,"bd":4,"ba":2.5,"g":8,"z":"98038","lat":47.4193,"lng":-121.958},{"id":"7576700131","c":2,"p":850000,"s":2220,"bd":3,"ba":2.2,"g":8,"z":"98122","lat":47.617,"lng":-122.286},{"id":"8856890020","c":2,"p":265000,"s":1680,"bd":3,"ba":1.8,"g":8,"z":"98058","lat":47.4631,"lng":-122.126},{"id":"259000100","c":2,"p":430000,"s":1610,"bd":3,"ba":1.8,"g":8,"z":"98177","lat":47.7588,"lng":-122.36},{"id":"7987400475","c":2,"p":745000,"s":2400,"bd":5,"ba":3.0,"g":8,"z":"98126","lat":47.5726,"lng":-122.373},{"id":"9828702518","c":2,"p":479000,"s":1230,"bd":2,"ba":2.2,"g":8,"z":"98112","lat":47.6192,"lng":-122.301},{"id":"5561200310","c":2,"p":525000,"s":2470,"bd":3,"ba":3.0,"g":8,"z":"98027","lat":47.4661,"lng":-121.997},{"id":"4055701200","c":2,"p":1955000,"s":3120,"bd":4,"ba":2.8,"g":8,"z":"98034","lat":47.7165,"lng":-122.259},{"id":"2423059060","c":2,"p":838000,"s":2930,"bd":3,"ba":3.8,"g":8,"z":"98058","lat":47.4658,"lng":-122.115},{"id":"2620069113","c":2,"p":380000,"s":1600,"bd":3,"ba":2.2,"g":8,"z":"98022","lat":47.1991,"lng":-122.013},{"id":"2621750340","c":2,"p":337000,"s":1690,"bd":3,"ba":2.0,"g":8,"z":"98042","lat":47.3724,"lng":-122.108},{"id":"2768100186","c":2,"p":515000,"s":1360,"bd":3,"ba":3.5,"g":8,"z":"98107","lat":47.6697,"lng":-122.371},{"id":"7936800150","c":2,"p":394500,"s":3002,"bd":4,"ba":2.5,"g":8,"z":"98055","lat":47.4231,"lng":-122.186},{"id":"8937600080","c":2,"p":295000,"s":1930,"bd":3,"ba":1.8,"g":8,"z":"98023","lat":47.3317,"lng":-122.365},{"id":"1777600450","c":2,"p":730000,"s":2500,"bd":5,"ba":3.0,"g":8,"z":"98006","lat":47.5696,"lng":-122.127},{"id":"3034200067","c":2,"p":620000,"s":2730,"bd":4,"ba":2.5,"g":8,"z":"98133","lat":47.7222,"lng":-122.331},{"id":"3528900771","c":2,"p":600000,"s":1690,"bd":3,"ba":3.2,"g":8,"z":"98109","lat":47.6397,"lng":-122.345},{"id":"2821049048","c":2,"p":590000,"s":2360,"bd":4,"ba":4.2,"g":8,"z":"98003","lat":47.2843,"lng":-122.294},{"id":"2675600028","c":2,"p":615000,"s":2660,"bd":3,"ba":1.8,"g":8,"z":"98117","lat":47.6993,"lng":-122.378},{"id":"3905040070","c":2,"p":540000,"s":1670,"bd":3,"ba":2.5,"g":8,"z":"98029","lat":47.5707,"lng":-121.999},{"id":"3244500037","c":2,"p":510000,"s":2310,"bd":3,"ba":2.5,"g":8,"z":"98072","lat":47.7677,"lng":-122.135},{"id":"2767603608","c":2,"p":405000,"s":1170,"bd":2,"ba":1.5,"g":8,"z":"98107","lat":47.6719,"lng":-122.381},{"id":"7967000200","c":2,"p":345500,"s":1930,"bd":3,"ba":2.5,"g":8,"z":"98001","lat":47.3518,"lng":-122.275},{"id":"5416510140","c":2,"p":360000,"s":2380,"bd":4,"ba":2.5,"g":8,"z":"98038","lat":47.3608,"lng":-122.036},{"id":"7933510080","c":2,"p":589000,"s":2360,"bd":3,"ba":2.0,"g":8,"z":"98024","lat":47.5595,"lng":-121.867},{"id":"2767604253","c":2,"p":396000,"s":950,"bd":2,"ba":1.5,"g":8,"z":"98107","lat":47.6714,"lng":-122.382},{"id":"2810100023","c":2,"p":395000,"s":1350,"bd":2,"ba":2.2,"g":8,"z":"98136","lat":47.5421,"lng":-122.388},{"id":"8650700090","c":2,"p":1052500,"s":3950,"bd":4,"ba":2.8,"g":8,"z":"98040","lat":47.5489,"lng":-122.219},{"id":"2767604551","c":2,"p":371000,"s":1110,"bd":2,"ba":1.5,"g":8,"z":"98107","lat":47.6711,"lng":-122.377},{"id":"6204050080","c":2,"p":555000,"s":3160,"bd":3,"ba":2.5,"g":8,"z":"98011","lat":47.7453,"lng":-122.194},{"id":"1931300688","c":2,"p":533000,"s":1280,"bd":3,"ba":3.0,"g":8,"z":"98103","lat":47.6569,"lng":-122.346},{"id":"6415100297","c":2,"p":530000,"s":2160,"bd":3,"ba":2.5,"g":8,"z":"98133","lat":47.7296,"lng":-122.333},{"id":"2767603612","c":2,"p":500000,"s":1290,"bd":2,"ba":2.2,"g":8,"z":"98107","lat":47.6719,"lng":-122.382},{"id":"6021503706","c":2,"p":329900,"s":980,"bd":2,"ba":2.5,"g":8,"z":"98117","lat":47.6844,"lng":-122.387},{"id":"2028700570","c":2,"p":560000,"s":1530,"bd":3,"ba":3.2,"g":8,"z":"98117","lat":47.6783,"lng":-122.366},{"id":"421079142","c":2,"p":415000,"s":3060,"bd":4,"ba":2.2,"g":8,"z":"98010","lat":47.3397,"lng":-121.918},{"id":"2822069080","c":2,"p":390000,"s":2560,"bd":4,"ba":2.5,"g":8,"z":"98038","lat":47.3692,"lng":-122.047},{"id":"1186000125","c":2,"p":742500,"s":3100,"bd":4,"ba":2.8,"g":8,"z":"98122","lat":47.6158,"lng":-122.291},{"id":"3629790160","c":2,"p":524250,"s":1710,"bd":3,"ba":2.5,"g":8,"z":"98029","lat":47.546,"lng":-122.011},{"id":"2587910180","c":2,"p":365000,"s":1380,"bd":3,"ba":1.0,"g":8,"z":"98042","lat":47.334,"lng":-122.106},{"id":"2126079014","c":2,"p":540000,"s":2540,"bd":4,"ba":2.2,"g":8,"z":"98019","lat":47.719,"lng":-121.912},{"id":"1402950550","c":2,"p":332000,"s":2470,"bd":4,"ba":2.5,"g":8,"z":"98092","lat":47.3337,"lng":-122.191},{"id":"3432500980","c":2,"p":410000,"s":2060,"bd":4,"ba":2.2,"g":8,"z":"98155","lat":47.7435,"lng":-122.317},{"id":"3797000290","c":2,"p":660000,"s":2340,"bd":3,"ba":3.0,"g":8,"z":"98103","lat":47.6868,"lng":-122.348},{"id":"3296000170","c":2,"p":555000,"s":2810,"bd":5,"ba":2.8,"g":8,"z":"98007","lat":47.6199,"lng":-122.141},{"id":"3790700110","c":2,"p":225000,"s":1700,"bd":4,"ba":2.5,"g":8,"z":"98030","lat":47.3582,"lng":-122.191},{"id":"8929000050","c":2,"p":439990,"s":1540,"bd":4,"ba":2.5,"g":8,"z":"98029","lat":47.5526,"lng":-121.999},{"id":"567000020","c":2,"p":800000,"s":1570,"bd":2,"ba":1.0,"g":8,"z":"98144","lat":47.5955,"lng":-122.294},{"id":"8682291390","c":2,"p":705000,"s":2305,"bd":2,"ba":2.5,"g":8,"z":"98077","lat":47.7203,"lng":-122.024},{"id":"3438503230","c":2,"p":395000,"s":2510,"bd":3,"ba":2.5,"g":8,"z":"98106","lat":47.5374,"lng":-122.357},{"id":"1428900033","c":2,"p":576925,"s":2630,"bd":4,"ba":2.5,"g":8,"z":"98072","lat":47.7735,"lng":-122.167},{"id":"7212660640","c":2,"p":333000,"s":2400,"bd":4,"ba":2.5,"g":8,"z":"98003","lat":47.2697,"lng":-122.312},{"id":"5153200356","c":2,"p":280000,"s":2250,"bd":4,"ba":1.8,"g":8,"z":"98023","lat":47.3303,"lng":-122.351},{"id":"8731982250","c":2,"p":268500,"s":1670,"bd":4,"ba":1.8,"g":8,"z":"98023","lat":47.3193,"lng":-122.383},{"id":"3260810580","c":2,"p":345000,"s":2190,"bd":3,"ba":2.8,"g":8,"z":"98003","lat":47.3486,"lng":-122.301},{"id":"263000359","c":2,"p":355000,"s":1370,"bd":3,"ba":2.2,"g":8,"z":"98103","lat":47.6982,"lng":-122.347},{"id":"6619910140","c":2,"p":630000,"s":2950,"bd":4,"ba":1.8,"g":8,"z":"98034","lat":47.7128,"lng":-122.223},{"id":"923000580","c":2,"p":614000,"s":2760,"bd":4,"ba":2.8,"g":8,"z":"98177","lat":47.7248,"lng":-122.365},{"id":"1085622540","c":2,"p":379500,"s":2560,"bd":4,"ba":2.5,"g":8,"z":"98092","lat":47.3404,"lng":-122.181},{"id":"8825900310","c":2,"p":730000,"s":2030,"bd":4,"ba":2.5,"g":8,"z":"98115","lat":47.6753,"lng":-122.311},{"id":"8121610110","c":2,"p":521000,"s":1720,"bd":3,"ba":1.8,"g":8,"z":"98053","lat":47.6608,"lng":-122.035},{"id":"1795920250","c":2,"p":637000,"s":2200,"bd":3,"ba":2.2,"g":8,"z":"98052","lat":47.7266,"lng":-122.103},{"id":"7238000330","c":2,"p":480000,"s":2980,"bd":3,"ba":2.5,"g":8,"z":"98055","lat":47.437,"lng":-122.207},{"id":"7904700126","c":2,"p":388000,"s":1370,"bd":3,"ba":3.2,"g":8,"z":"98116","lat":47.5639,"lng":-122.388},{"id":"5459500100","c":2,"p":680000,"s":2330,"bd":3,"ba":1.8,"g":8,"z":"98040","lat":47.5714,"lng":-122.211},{"id":"3260800190","c":2,"p":325000,"s":2000,"bd":3,"ba":2.5,"g":8,"z":"98003","lat":47.3499,"lng":-122.302},{"id":"7922710450","c":2,"p":731000,"s":3670,"bd":5,"ba":2.5,"g":8,"z":"98052","lat":47.6654,"lng":-122.142},{"id":"5229300085","c":2,"p":600000,"s":2680,"bd":3,"ba":2.2,"g":8,"z":"98059","lat":47.5015,"lng":-122.108},{"id":"1773100926","c":2,"p":320000,"s":1530,"bd":3,"ba":3.2,"g":8,"z":"98106","lat":47.5555,"lng":-122.362},{"id":"6072760210","c":2,"p":437850,"s":2670,"bd":4,"ba":2.2,"g":8,"z":"98006","lat":47.5623,"lng":-122.175},{"id":"5151600340","c":2,"p":290000,"s":1950,"bd":3,"ba":1.5,"g":8,"z":"98003","lat":47.336,"lng":-122.319},{"id":"6884800262","c":2,"p":535000,"s":1970,"bd":4,"ba":2.0,"g":8,"z":"98115","lat":47.6873,"lng":-122.314},{"id":"9272201704","c":2,"p":369000,"s":980,"bd":2,"ba":2.5,"g":8,"z":"98116","lat":47.5874,"lng":-122.386},{"id":"6141100065","c":2,"p":420000,"s":1790,"bd":3,"ba":1.0,"g":8,"z":"98133","lat":47.718,"lng":-122.355},{"id":"686900010","c":2,"p":898000,"s":2680,"bd":5,"ba":1.5,"g":8,"z":"98004","lat":47.6348,"lng":-122.196},{"id":"8079040330","c":2,"p":406500,"s":1780,"bd":3,"ba":2.0,"g":8,"z":"98059","lat":47.5062,"lng":-122.149},{"id":"3176600105","c":2,"p":750000,"s":2250,"bd":3,"ba":2.2,"g":8,"z":"98115","lat":47.6741,"lng":-122.271},{"id":"2296500036","c":2,"p":450000,"s":2980,"bd":4,"ba":2.8,"g":8,"z":"98056","lat":47.5152,"lng":-122.197},{"id":"8682261070","c":2,"p":575000,"s":1680,"bd":2,"ba":2.0,"g":8,"z":"98053","lat":47.7136,"lng":-122.03},{"id":"3447000090","c":2,"p":653000,"s":2800,"bd":3,"ba":2.2,"g":8,"z":"98006","lat":47.5716,"lng":-122.128},{"id":"3905100280","c":2,"p":478000,"s":1640,"bd":3,"ba":2.2,"g":8,"z":"98029","lat":47.5689,"lng":-122.006},{"id":"1402950100","c":2,"p":305000,"s":2430,"bd":4,"ba":2.5,"g":8,"z":"98092","lat":47.3348,"lng":-122.19},{"id":"5104530560","c":2,"p":208633,"s":2040,"bd":3,"ba":2.5,"g":8,"z":"98038","lat":47.3537,"lng":-122.0},{"id":"5409800120","c":2,"p":312200,"s":2910,"bd":4,"ba":2.5,"g":8,"z":"98003","lat":47.2596,"lng":-122.304},{"id":"1566100625","c":2,"p":450000,"s":1610,"bd":3,"ba":2.2,"g":8,"z":"98115","lat":47.7,"lng":-122.297},{"id":"2557000540","c":2,"p":270000,"s":1810,"bd":3,"ba":2.2,"g":8,"z":"98023","lat":47.2994,"lng":-122.37},{"id":"5040800060","c":2,"p":675000,"s":1710,"bd":3,"ba":1.8,"g":8,"z":"98199","lat":47.6481,"lng":-122.406},{"id":"6817750440","c":2,"p":300000,"s":1914,"bd":4,"ba":2.5,"g":8,"z":"98055","lat":47.4297,"lng":-122.189},{"id":"3204930170","c":2,"p":680000,"s":2510,"bd":4,"ba":3.5,"g":8,"z":"98052","lat":47.7002,"lng":-122.103},{"id":"5101404144","c":2,"p":654000,"s":2240,"bd":4,"ba":2.5,"g":8,"z":"98115","lat":47.6965,"lng":-122.308},{"id":"9524100050","c":2,"p":360000,"s":1255,"bd":3,"ba":1.8,"g":8,"z":"98103","lat":47.6958,"lng":-122.343},{"id":"6384300020","c":2,"p":494000,"s":1830,"bd":4,"ba":2.5,"g":8,"z":"98177","lat":47.7741,"lng":-122.373},{"id":"3990200020","c":2,"p":359000,"s":1680,"bd":4,"ba":1.8,"g":8,"z":"98166","lat":47.4612,"lng":-122.352},{"id":"3575303430","c":2,"p":780000,"s":4310,"bd":6,"ba":4.2,"g":8,"z":"98074","lat":47.6214,"lng":-122.062},{"id":"366000095","c":2,"p":890000,"s":2590,"bd":5,"ba":1.0,"g":8,"z":"98122","lat":47.6038,"lng":-122.294},{"id":"1443550080","c":2,"p":487600,"s":2340,"bd":4,"ba":2.5,"g":8,"z":"98019","lat":47.7325,"lng":-121.969},{"id":"2473510090","c":2,"p":341000,"s":1750,"bd":3,"ba":2.2,"g":8,"z":"98058","lat":47.4451,"lng":-122.136},{"id":"7708300150","c":2,"p":315000,"s":1660,"bd":3,"ba":2.0,"g":8,"z":"98045","lat":47.4897,"lng":-121.787},{"id":"8732190070","c":2,"p":268000,"s":1980,"bd":3,"ba":1.8,"g":8,"z":"98023","lat":47.3104,"lng":-122.394},{"id":"5466380050","c":2,"p":304500,"s":2030,"bd":4,"ba":2.5,"g":8,"z":"98031","lat":47.388,"lng":-122.176},{"id":"9276200190","c":2,"p":569950,"s":1420,"bd":5,"ba":1.0,"g":8,"z":"98116","lat":47.5807,"lng":-122.389},{"id":"8732020310","c":2,"p":260000,"s":2160,"bd":4,"ba":2.2,"g":8,"z":"98023","lat":47.3129,"lng":-122.39},{"id":"5255710010","c":2,"p":435000,"s":2030,"bd":3,"ba":1.8,"g":8,"z":"98011","lat":47.7726,"lng":-122.197},{"id":"1329500120","c":2,"p":300000,"s":2600,"bd":4,"ba":2.5,"g":8,"z":"98001","lat":47.3155,"lng":-122.266},{"id":"8163000020","c":2,"p":805000,"s":2240,"bd":5,"ba":3.0,"g":8,"z":"98027","lat":47.5171,"lng":-122.029},{"id":"3124059023","c":2,"p":1955000,"s":3330,"bd":3,"ba":1.8,"g":8,"z":"98040","lat":47.5287,"lng":-122.22},{"id":"3992700036","c":2,"p":415000,"s":1170,"bd":3,"ba":1.0,"g":8,"z":"98125","lat":47.7122,"lng":-122.29},{"id":"7942601810","c":2,"p":733500,"s":2120,"bd":3,"ba":1.5,"g":8,"z":"98122","lat":47.606,"lng":-122.307},{"id":"223039229","c":2,"p":787500,"s":2390,"bd":2,"ba":2.5,"g":8,"z":"98146","lat":47.5101,"lng":-122.391},{"id":"2547200240","c":2,"p":687000,"s":2370,"bd":4,"ba":2.5,"g":8,"z":"98033","lat":47.6715,"lng":-122.166},{"id":"2228900195","c":2,"p":556000,"s":2240,"bd":4,"ba":2.5,"g":8,"z":"98133","lat":47.772,"lng":-122.35},{"id":"9523100712","c":2,"p":485000,"s":1430,"bd":2,"ba":2.5,"g":8,"z":"98103","lat":47.6683,"lng":-122.355},{"id":"6021501635","c":2,"p":825000,"s":2560,"bd":4,"ba":2.5,"g":8,"z":"98117","lat":47.6885,"lng":-122.386},{"id":"9264900660","c":2,"p":241500,"s":2500,"bd":4,"ba":2.5,"g":8,"z":"98023","lat":47.3137,"lng":-122.343},{"id":"6648760150","c":2,"p":315000,"s":1600,"bd":3,"ba":2.5,"g":8,"z":"98001","lat":47.3397,"lng":-122.266},{"id":"9268851670","c":2,"p":645000,"s":2170,"bd":3,"ba":2.5,"g":8,"z":"98027","lat":47.5401,"lng":-122.027},{"id":"4475000170","c":2,"p":370000,"s":2580,"bd":4,"ba":3.0,"g":8,"z":"98058","lat":47.4286,"lng":-122.185},{"id":"241900020","c":2,"p":378800,"s":2740,"bd":5,"ba":2.5,"g":8,"z":"98031","lat":47.4036,"lng":-122.205},{"id":"2597710050","c":2,"p":349950,"s":2090,"bd":4,"ba":2.5,"g":8,"z":"98058","lat":47.4289,"lng":-122.164},{"id":"809000525","c":2,"p":872500,"s":2040,"bd":3,"ba":2.5,"g":8,"z":"98109","lat":47.6334,"lng":-122.35},{"id":"1562200240","c":2,"p":550000,"s":2160,"bd":3,"ba":2.2,"g":8,"z":"98007","lat":47.6232,"lng":-122.138},{"id":"1136100072","c":2,"p":455000,"s":1790,"bd":4,"ba":1.8,"g":8,"z":"98072","lat":47.7453,"lng":-122.129},{"id":"9551202130","c":2,"p":980000,"s":2750,"bd":5,"ba":2.5,"g":8,"z":"98103","lat":47.6729,"lng":-122.334},{"id":"2923500550","c":2,"p":599990,"s":2680,"bd":3,"ba":2.2,"g":8,"z":"98027","lat":47.5683,"lng":-122.091},{"id":"2597650240","c":2,"p":520000,"s":2030,"bd":3,"ba":2.2,"g":8,"z":"98027","lat":47.5162,"lng":-122.057},{"id":"7985100190","c":2,"p":248500,"s":1360,"bd":3,"ba":2.5,"g":8,"z":"98003","lat":47.3304,"lng":-122.302},{"id":"5003600120","c":2,"p":320000,"s":2110,"bd":4,"ba":2.5,"g":8,"z":"98030","lat":47.3641,"lng":-122.193},{"id":"3630010040","c":2,"p":402000,"s":1540,"bd":3,"ba":2.0,"g":8,"z":"98029","lat":47.5479,"lng":-121.998},{"id":"2600100110","c":2,"p":788000,"s":2680,"bd":4,"ba":2.5,"g":8,"z":"98006","lat":47.5516,"lng":-122.161},{"id":"2887970040","c":2,"p":234950,"s":1720,"bd":2,"ba":2.5,"g":8,"z":"98042","lat":47.3728,"lng":-122.157},{"id":"9414610320","c":2,"p":463000,"s":2680,"bd":4,"ba":2.5,"g":8,"z":"98027","lat":47.5219,"lng":-122.052},{"id":"8121200460","c":2,"p":530000,"s":2030,"bd":3,"ba":2.5,"g":8,"z":"98052","lat":47.7251,"lng":-122.11},{"id":"7852090180","c":2,"p":538500,"s":2500,"bd":3,"ba":3.5,"g":8,"z":"98065","lat":47.536,"lng":-121.877},{"id":"8682260470","c":2,"p":437000,"s":1440,"bd":2,"ba":1.8,"g":8,"z":"98053","lat":47.7143,"lng":-122.032},{"id":"4140940150","c":2,"p":572000,"s":2770,"bd":4,"ba":2.8,"g":8,"z":"98178","lat":47.5001,"lng":-122.232},{"id":"8728100775","c":2,"p":190500,"s":1110,"bd":3,"ba":1.5,"g":8,"z":"98144","lat":47.5929,"lng":-122.306},{"id":"921059161","c":2,"p":320000,"s":1890,"bd":4,"ba":1.5,"g":8,"z":"98092","lat":47.3267,"lng":-122.166},{"id":"3649100586","c":2,"p":483000,"s":2110,"bd":3,"ba":1.8,"g":8,"z":"98028","lat":47.7344,"lng":-122.246},{"id":"6893300350","c":2,"p":439900,"s":1410,"bd":2,"ba":2.0,"g":8,"z":"98024","lat":47.5242,"lng":-121.926},{"id":"3010300415","c":2,"p":383000,"s":2280,"bd":5,"ba":2.0,"g":8,"z":"98116","lat":47.5672,"lng":-122.39},{"id":"5072100095","c":2,"p":554000,"s":3440,"bd":5,"ba":2.5,"g":8,"z":"98166","lat":47.4426,"lng":-122.342},{"id":"1773100920","c":2,"p":320000,"s":1480,"bd":3,"ba":3.2,"g":8,"z":"98106","lat":47.5556,"lng":-122.363},{"id":"9272201250","c":2,"p":1260000,"s":2700,"bd":2,"ba":1.5,"g":8,"z":"98116","lat":47.5892,"lng":-122.383},{"id":"4385701285","c":2,"p":1272000,"s":3020,"bd":4,"ba":3.2,"g":8,"z":"98112","lat":47.6395,"lng":-122.279},{"id":"1776230220","c":2,"p":414000,"s":2490,"bd":3,"ba":2.5,"g":8,"z":"98059","lat":47.5051,"lng":-122.155},{"id":"2473000470","c":2,"p":336000,"s":2760,"bd":3,"ba":2.2,"g":8,"z":"98058","lat":47.4504,"lng":-122.15},{"id":"1775801405","c":2,"p":557500,"s":2390,"bd":4,"ba":2.5,"g":8,"z":"98072","lat":47.7433,"lng":-122.094},{"id":"4077800094","c":2,"p":675000,"s":2220,"bd":4,"ba":1.8,"g":8,"z":"98125","lat":47.7065,"lng":-122.279},{"id":"5701700011","c":3,"p":1050000,"s":4380,"bd":3,"ba":4.0,"g":11,"z":"98052","lat":47.7167,"lng":-122.109},{"id":"8651200080","c":3,"p":1190000,"s":3330,"bd":5,"ba":3.0,"g":11,"z":"98040","lat":47.5485,"lng":-122.214},{"id":"8562720230","c":3,"p":980000,"s":3720,"bd":4,"ba":3.2,"g":11,"z":"98027","lat":47.5359,"lng":-122.069},{"id":"3861470110","c":3,"p":2075000,"s":4230,"bd":4,"ba":3.5,"g":11,"z":"98004","lat":47.5954,"lng":-122.206},{"id":"324069112","c":3,"p":1325000,"s":4420,"bd":4,"ba":4.0,"g":11,"z":"98075","lat":47.5914,"lng":-122.027},{"id":"3629920990","c":3,"p":905000,"s":3440,"bd":4,"ba":3.2,"g":11,"z":"98029","lat":47.5429,"lng":-121.995},{"id":"7524900003","c":3,"p":3278000,"s":6840,"bd":2,"ba":1.8,"g":11,"z":"98008","lat":47.6042,"lng":-122.112},{"id":"1152600220","c":3,"p":831500,"s":4470,"bd":5,"ba":2.5,"g":11,"z":"98072","lat":47.7377,"lng":-122.084},{"id":"9279700150","c":3,"p":1625000,"s":4410,"bd":4,"ba":3.8,"g":11,"z":"98116","lat":47.5888,"lng":-122.392},{"id":"1370802115","c":3,"p":1925000,"s":3950,"bd":3,"ba":4.5,"g":11,"z":"98199","lat":47.6413,"lng":-122.405},{"id":"3225079035","c":3,"p":1600000,"s":6050,"bd":6,"ba":5.0,"g":11,"z":"98024","lat":47.6033,"lng":-121.943},{"id":"1727850350","c":3,"p":1190000,"s":3480,"bd":4,"ba":2.5,"g":11,"z":"98005","lat":47.6404,"lng":-122.171},{"id":"4030100290","c":3,"p":1680000,"s":5170,"bd":5,"ba":3.5,"g":11,"z":"98155","lat":47.7561,"lng":-122.271},{"id":"425069020","c":3,"p":1090000,"s":4340,"bd":4,"ba":2.5,"g":11,"z":"98053","lat":47.6805,"lng":-122.048},{"id":"3864000120","c":3,"p":1175000,"s":3780,"bd":4,"ba":3.2,"g":11,"z":"98006","lat":47.5508,"lng":-122.192},{"id":"98000130","c":3,"p":1425000,"s":4630,"bd":4,"ba":5.0,"g":11,"z":"98075","lat":47.587,"lng":-121.966},{"id":"1102000527","c":3,"p":1437500,"s":4410,"bd":4,"ba":3.8,"g":11,"z":"98118","lat":47.5427,"lng":-122.265},{"id":"1525069134","c":3,"p":1295000,"s":3790,"bd":4,"ba":3.5,"g":11,"z":"98053","lat":47.6587,"lng":-122.022},{"id":"525069127","c":3,"p":1200000,"s":4740,"bd":4,"ba":3.5,"g":11,"z":"98053","lat":47.6779,"lng":-122.075},{"id":"5553300375","c":3,"p":2160000,"s":3080,"bd":3,"ba":3.5,"g":11,"z":"98199","lat":47.6321,"lng":-122.393},{"id":"8081020370","c":3,"p":1355000,"s":3550,"bd":4,"ba":3.5,"g":11,"z":"98006","lat":47.5506,"lng":-122.134},{"id":"8835770330","c":3,"p":1057000,"s":2370,"bd":2,"ba":1.5,"g":11,"z":"98045","lat":47.4543,"lng":-121.778},{"id":"148000475","c":3,"p":1400000,"s":4700,"bd":4,"ba":3.2,"g":11,"z":"98116","lat":47.5744,"lng":-122.406},{"id":"7237550310","c":3,"p":1225000,"s":5420,"bd":4,"ba":4.5,"g":11,"z":"98053","lat":47.6561,"lng":-122.005},{"id":"9286000150","c":3,"p":1125000,"s":5330,"bd":6,"ba":4.0,"g":11,"z":"98006","lat":47.5503,"lng":-122.137},{"id":"4139430250","c":3,"p":1436000,"s":4970,"bd":4,"ba":3.5,"g":11,"z":"98006","lat":47.5496,"lng":-122.12},{"id":"7504050090","c":3,"p":720000,"s":2820,"bd":3,"ba":2.5,"g":11,"z":"98074","lat":47.6396,"lng":-122.054},{"id":"5152960710","c":3,"p":740000,"s":5774,"bd":5,"ba":5.0,"g":11,"z":"98003","lat":47.3466,"lng":-122.323},{"id":"2944000170","c":3,"p":1010000,"s":3760,"bd":4,"ba":2.5,"g":11,"z":"98052","lat":47.7203,"lng":-122.128},{"id":"2125059013","c":3,"p":1670000,"s":4320,"bd":5,"ba":3.5,"g":11,"z":"98004","lat":47.644,"lng":-122.185},{"id":"8653600100","c":3,"p":750000,"s":3120,"bd":5,"ba":2.5,"g":11,"z":"98074","lat":47.6142,"lng":-122.065},{"id":"357000135","c":3,"p":1900000,"s":3070,"bd":4,"ba":2.5,"g":11,"z":"98144","lat":47.593,"lng":-122.291},{"id":"1424130050","c":3,"p":995000,"s":5610,"bd":5,"ba":4.0,"g":11,"z":"98072","lat":47.7239,"lng":-122.092},{"id":"5710000005","c":3,"p":2150000,"s":5060,"bd":4,"ba":5.5,"g":11,"z":"98004","lat":47.6245,"lng":-122.21},{"id":"3303960250","c":3,"p":1050000,"s":4020,"bd":4,"ba":3.2,"g":11,"z":"98059","lat":47.5217,"lng":-122.155},{"id":"7852160170","c":3,"p":1210000,"s":4980,"bd":4,"ba":3.8,"g":11,"z":"98065","lat":47.5348,"lng":-121.856},{"id":"5316100780","c":3,"p":2575000,"s":3280,"bd":4,"ba":3.5,"g":11,"z":"98112","lat":47.6299,"lng":-122.28},{"id":"2559950110","c":3,"p":1234570,"s":2470,"bd":2,"ba":2.5,"g":11,"z":"98112","lat":47.6182,"lng":-122.312},{"id":"6667400090","c":3,"p":845000,"s":2880,"bd":4,"ba":3.2,"g":11,"z":"98005","lat":47.6587,"lng":-122.163},{"id":"4054510270","c":3,"p":1250000,"s":3830,"bd":4,"ba":3.8,"g":11,"z":"98077","lat":47.7237,"lng":-122.042},{"id":"1025039086","c":3,"p":1875000,"s":3280,"bd":3,"ba":2.5,"g":11,"z":"98199","lat":47.6699,"lng":-122.416},{"id":"7135520610","c":3,"p":950000,"s":4140,"bd":4,"ba":3.5,"g":11,"z":"98059","lat":47.5261,"lng":-122.144},{"id":"3425069117","c":3,"p":1275000,"s":6160,"bd":6,"ba":5.2,"g":11,"z":"98074","lat":47.6094,"lng":-122.023},{"id":"3761700053","c":3,"p":2150000,"s":3470,"bd":3,"ba":2.8,"g":11,"z":"98034","lat":47.7205,"lng":-122.26},{"id":"1025069255","c":3,"p":1175000,"s":4150,"bd":4,"ba":3.5,"g":11,"z":"98053","lat":47.6746,"lng":-122.018},{"id":"3293200190","c":3,"p":1122500,"s":4750,"bd":4,"ba":3.2,"g":11,"z":"98052","lat":47.7149,"lng":-122.099},{"id":"1727850340","c":3,"p":1272000,"s":3200,"bd":4,"ba":2.8,"g":11,"z":"98005","lat":47.6402,"lng":-122.171},{"id":"3023069166","c":3,"p":1135250,"s":7320,"bd":5,"ba":4.0,"g":11,"z":"98058","lat":47.4473,"lng":-122.086},{"id":"1424059022","c":3,"p":1150000,"s":3830,"bd":3,"ba":2.5,"g":11,"z":"98006","lat":47.5663,"lng":-122.125},{"id":"7701960990","c":3,"p":862000,"s":3190,"bd":4,"ba":2.5,"g":11,"z":"98077","lat":47.713,"lng":-122.072},{"id":"1888120140","c":3,"p":989000,"s":4030,"bd":5,"ba":4.5,"g":11,"z":"98075","lat":47.5812,"lng":-121.995},{"id":"3629921240","c":3,"p":970000,"s":3890,"bd":4,"ba":4.5,"g":11,"z":"98029","lat":47.5426,"lng":-121.995},{"id":"7015200335","c":3,"p":1525000,"s":3620,"bd":4,"ba":3.2,"g":11,"z":"98119","lat":47.6499,"lng":-122.37},{"id":"1239400650","c":3,"p":1242000,"s":4700,"bd":4,"ba":3.5,"g":11,"z":"98033","lat":47.6728,"lng":-122.189},{"id":"2311400056","c":3,"p":1987500,"s":5230,"bd":5,"ba":3.5,"g":11,"z":"98004","lat":47.5964,"lng":-122.201},{"id":"7159200005","c":3,"p":3200000,"s":6210,"bd":7,"ba":4.5,"g":11,"z":"98109","lat":47.6307,"lng":-122.354},{"id":"7768700300","c":3,"p":2575000,"s":5540,"bd":4,"ba":4.2,"g":11,"z":"98004","lat":47.6071,"lng":-122.212},{"id":"8894200150","c":3,"p":1275000,"s":5844,"bd":4,"ba":3.5,"g":11,"z":"98023","lat":47.3293,"lng":-122.364},{"id":"7298040310","c":3,"p":556000,"s":3840,"bd":5,"ba":2.5,"g":11,"z":"98023","lat":47.2996,"lng":-122.342},{"id":"3271800295","c":3,"p":1569500,"s":5620,"bd":5,"ba":4.5,"g":11,"z":"98199","lat":47.6482,"lng":-122.412},{"id":"1862000010","c":3,"p":915000,"s":3400,"bd":4,"ba":2.5,"g":11,"z":"98052","lat":47.7168,"lng":-122.113},{"id":"3629921000","c":3,"p":950000,"s":3700,"bd":4,"ba":2.5,"g":11,"z":"98029","lat":47.5427,"lng":-121.995},{"id":"9477580110","c":3,"p":971971,"s":3460,"bd":4,"ba":3.8,"g":11,"z":"98059","lat":47.506,"lng":-122.145},{"id":"98001000","c":3,"p":1025000,"s":5050,"bd":5,"ba":3.5,"g":11,"z":"98075","lat":47.5863,"lng":-121.967},{"id":"9829201020","c":3,"p":1388000,"s":2400,"bd":3,"ba":1.2,"g":11,"z":"98122","lat":47.6019,"lng":-122.29},{"id":"624110860","c":3,"p":1150000,"s":3760,"bd":4,"ba":3.5,"g":11,"z":"98077","lat":47.7255,"lng":-122.059},{"id":"2726059144","c":3,"p":1037000,"s":4570,"bd":5,"ba":3.8,"g":11,"z":"98034","lat":47.718,"lng":-122.161},{"id":"4141000060","c":3,"p":1227500,"s":3180,"bd":4,"ba":2.5,"g":11,"z":"98040","lat":47.5372,"lng":-122.232},{"id":"2326059080","c":3,"p":1225000,"s":3420,"bd":3,"ba":2.5,"g":11,"z":"98052","lat":47.7225,"lng":-122.126},{"id":"713500030","c":3,"p":1350000,"s":4800,"bd":5,"ba":3.5,"g":11,"z":"98006","lat":47.5543,"lng":-122.148},{"id":"2624059036","c":3,"p":1599950,"s":5130,"bd":5,"ba":4.5,"g":11,"z":"98006","lat":47.544,"lng":-122.126},{"id":"3293400010","c":3,"p":950000,"s":3450,"bd":5,"ba":2.5,"g":11,"z":"98052","lat":47.7173,"lng":-122.099},{"id":"7701960210","c":3,"p":875000,"s":3030,"bd":4,"ba":2.5,"g":11,"z":"98077","lat":47.7125,"lng":-122.081},{"id":"1321720170","c":3,"p":610000,"s":3440,"bd":3,"ba":2.5,"g":11,"z":"98023","lat":47.2909,"lng":-122.342},{"id":"1125079111","c":3,"p":1600000,"s":6530,"bd":4,"ba":5.5,"g":11,"z":"98014","lat":47.664,"lng":-121.878},{"id":"6648150090","c":3,"p":1195000,"s":4050,"bd":4,"ba":4.0,"g":11,"z":"98040","lat":47.5769,"lng":-122.215},{"id":"4053200285","c":3,"p":725000,"s":3410,"bd":3,"ba":2.5,"g":11,"z":"98042","lat":47.3228,"lng":-122.08},{"id":"4054500390","c":3,"p":1365000,"s":5310,"bd":4,"ba":4.8,"g":11,"z":"98077","lat":47.7285,"lng":-122.042},{"id":"7237500390","c":3,"p":1570000,"s":6070,"bd":5,"ba":4.5,"g":11,"z":"98059","lat":47.5306,"lng":-122.134},{"id":"1853000530","c":3,"p":1150000,"s":5300,"bd":4,"ba":3.8,"g":11,"z":"98077","lat":47.7283,"lng":-122.076},{"id":"7852160310","c":3,"p":1010000,"s":3430,"bd":4,"ba":2.8,"g":11,"z":"98065","lat":47.5364,"lng":-121.856},{"id":"8644220070","c":3,"p":745000,"s":2650,"bd":4,"ba":2.5,"g":11,"z":"98075","lat":47.5761,"lng":-121.989},{"id":"2540700110","c":3,"p":1905000,"s":4210,"bd":4,"ba":3.5,"g":11,"z":"98039","lat":47.6206,"lng":-122.225},{"id":"8084900160","c":3,"p":2641100,"s":4660,"bd":5,"ba":4.2,"g":11,"z":"98004","lat":47.6326,"lng":-122.216},{"id":"7504021490","c":3,"p":1080000,"s":3720,"bd":3,"ba":2.5,"g":11,"z":"98074","lat":47.636,"lng":-122.049},{"id":"6600000050","c":3,"p":1698000,"s":3950,"bd":4,"ba":3.5,"g":11,"z":"98112","lat":47.6221,"lng":-122.29},{"id":"2154970020","c":3,"p":2351960,"s":5010,"bd":4,"ba":4.2,"g":11,"z":"98040","lat":47.5455,"lng":-122.211},{"id":"3625059152","c":3,"p":3300000,"s":4220,"bd":3,"ba":3.2,"g":11,"z":"98008","lat":47.6083,"lng":-122.11},{"id":"5093300325","c":3,"p":1610000,"s":4390,"bd":4,"ba":3.5,"g":11,"z":"98040","lat":47.5862,"lng":-122.246},{"id":"2724079090","c":3,"p":1650000,"s":3920,"bd":4,"ba":3.2,"g":11,"z":"98024","lat":47.5385,"lng":-121.896},{"id":"3303850290","c":3,"p":1400000,"s":4700,"bd":5,"ba":4.0,"g":11,"z":"98006","lat":47.5417,"lng":-122.111},{"id":"251500080","c":3,"p":3204000,"s":4810,"bd":4,"ba":4.0,"g":11,"z":"98004","lat":47.6364,"lng":-122.214},{"id":"7851990120","c":3,"p":925000,"s":5190,"bd":5,"ba":5.5,"g":11,"z":"98065","lat":47.5424,"lng":-121.872},{"id":"4139300135","c":3,"p":2321000,"s":5780,"bd":5,"ba":4.8,"g":11,"z":"98040","lat":47.5802,"lng":-122.212},{"id":"856000195","c":3,"p":2700000,"s":5305,"bd":5,"ba":4.8,"g":11,"z":"98033","lat":47.6864,"lng":-122.215},{"id":"1025039320","c":3,"p":1305000,"s":3440,"bd":4,"ba":3.5,"g":11,"z":"98199","lat":47.6672,"lng":-122.409},{"id":"3505100756","c":3,"p":2050000,"s":4280,"bd":4,"ba":3.0,"g":11,"z":"98116","lat":47.5811,"lng":-122.4},{"id":"2525049148","c":3,"p":3418800,"s":5450,"bd":5,"ba":5.0,"g":11,"z":"98039","lat":47.6209,"lng":-122.237},{"id":"1732801150","c":3,"p":2300000,"s":3970,"bd":4,"ba":4.8,"g":11,"z":"98119","lat":47.6312,"lng":-122.366},{"id":"4045100075","c":3,"p":2400000,"s":4890,"bd":4,"ba":4.2,"g":11,"z":"98040","lat":47.5602,"lng":-122.227},{"id":"2524049166","c":3,"p":2950000,"s":6240,"bd":5,"ba":4.8,"g":11,"z":"98040","lat":47.5317,"lng":-122.233},{"id":"8562720410","c":3,"p":1200000,"s":4610,"bd":5,"ba":3.2,"g":11,"z":"98027","lat":47.5373,"lng":-122.07},{"id":"8651610890","c":3,"p":1150000,"s":4190,"bd":4,"ba":3.2,"g":11,"z":"98074","lat":47.6332,"lng":-122.066},{"id":"7237501180","c":3,"p":1200000,"s":3990,"bd":4,"ba":1.8,"g":11,"z":"98059","lat":47.5305,"lng":-122.131},{"id":"8081020330","c":3,"p":1320000,"s":3470,"bd":4,"ba":3.2,"g":11,"z":"98006","lat":47.5513,"lng":-122.135},{"id":"7430200100","c":3,"p":1222500,"s":4910,"bd":4,"ba":3.5,"g":11,"z":"98074","lat":47.6502,"lng":-122.066},{"id":"3758900075","c":3,"p":1532500,"s":4270,"bd":5,"ba":4.5,"g":11,"z":"98033","lat":47.699,"lng":-122.206},{"id":"4217402115","c":3,"p":3650000,"s":5480,"bd":6,"ba":4.8,"g":11,"z":"98105","lat":47.6515,"lng":-122.277},{"id":"3225069301","c":3,"p":1228000,"s":5730,"bd":4,"ba":2.5,"g":11,"z":"98074","lat":47.6052,"lng":-122.064},{"id":"4441300170","c":3,"p":1300000,"s":3110,"bd":4,"ba":2.5,"g":11,"z":"98117","lat":47.6952,"lng":-122.402},{"id":"518500460","c":3,"p":2230000,"s":3760,"bd":3,"ba":3.5,"g":11,"z":"98056","lat":47.5285,"lng":-122.205},{"id":"293800680","c":3,"p":949000,"s":4270,"bd":4,"ba":3.0,"g":11,"z":"98077","lat":47.7711,"lng":-122.048},{"id":"9272200090","c":3,"p":1598890,"s":3780,"bd":4,"ba":4.5,"g":11,"z":"98116","lat":47.5922,"lng":-122.388},{"id":"4054500590","c":3,"p":910000,"s":4040,"bd":4,"ba":3.5,"g":11,"z":"98077","lat":47.7196,"lng":-122.048},{"id":"586000020","c":3,"p":830005,"s":3610,"bd":4,"ba":3.8,"g":11,"z":"98117","lat":47.6992,"lng":-122.385},{"id":"8920100066","c":3,"p":1481000,"s":5220,"bd":4,"ba":3.5,"g":11,"z":"98075","lat":47.592,"lng":-122.085},{"id":"4139430910","c":3,"p":935000,"s":4110,"bd":4,"ba":3.2,"g":11,"z":"98006","lat":47.5493,"lng":-122.117},{"id":"4141000490","c":3,"p":1200000,"s":3180,"bd":4,"ba":2.5,"g":11,"z":"98040","lat":47.5382,"lng":-122.23},{"id":"1377300005","c":3,"p":1445000,"s":3470,"bd":4,"ba":3.5,"g":11,"z":"98199","lat":47.6433,"lng":-122.403},{"id":"5416300240","c":3,"p":935000,"s":5670,"bd":4,"ba":4.5,"g":11,"z":"98010","lat":47.323,"lng":-122.044},{"id":"3262300485","c":3,"p":2250000,"s":3410,"bd":5,"ba":5.2,"g":11,"z":"98039","lat":47.6295,"lng":-122.236},{"id":"2481630070","c":3,"p":914600,"s":3180,"bd":4,"ba":3.0,"g":11,"z":"98072","lat":47.7336,"lng":-122.134},{"id":"3885806105","c":3,"p":1580000,"s":3690,"bd":3,"ba":3.2,"g":11,"z":"98033","lat":47.6815,"lng":-122.2},{"id":"9808100150","c":3,"p":3345000,"s":5350,"bd":5,"ba":3.8,"g":11,"z":"98004","lat":47.648,"lng":-122.218},{"id":"1441600160","c":3,"p":1300000,"s":4120,"bd":4,"ba":3.0,"g":11,"z":"98075","lat":47.5985,"lng":-122.026},{"id":"5608010650","c":3,"p":965000,"s":3420,"bd":4,"ba":2.5,"g":11,"z":"98027","lat":47.5527,"lng":-122.095},{"id":"5078400160","c":3,"p":1800000,"s":4400,"bd":5,"ba":4.5,"g":11,"z":"98004","lat":47.6232,"lng":-122.207},{"id":"3459900230","c":3,"p":1680000,"s":7620,"bd":4,"ba":3.8,"g":11,"z":"98006","lat":47.5571,"lng":-122.14},{"id":"125069038","c":3,"p":2140000,"s":5150,"bd":4,"ba":3.8,"g":11,"z":"98053","lat":47.6795,"lng":-121.991},{"id":"5316100920","c":3,"p":2250000,"s":5150,"bd":3,"ba":4.2,"g":11,"z":"98112","lat":47.6288,"lng":-122.282},{"id":"1370800515","c":3,"p":2950000,"s":4470,"bd":4,"ba":4.2,"g":11,"z":"98199","lat":47.6387,"lng":-122.405},{"id":"98000560","c":3,"p":959900,"s":3550,"bd":4,"ba":3.8,"g":11,"z":"98075","lat":47.5888,"lng":-121.971},{"id":"1025039292","c":3,"p":1337500,"s":2900,"bd":4,"ba":2.5,"g":11,"z":"98199","lat":47.6696,"lng":-122.416},{"id":"7852070210","c":3,"p":1149000,"s":5940,"bd":4,"ba":3.0,"g":11,"z":"98065","lat":47.5443,"lng":-121.87},{"id":"7856410411","c":3,"p":1698890,"s":3860,"bd":4,"ba":4.5,"g":11,"z":"98006","lat":47.56,"lng":-122.161},{"id":"4141010110","c":3,"p":1700000,"s":4330,"bd":4,"ba":3.5,"g":11,"z":"98040","lat":47.5315,"lng":-122.231},{"id":"2597450620","c":3,"p":1511250,"s":4010,"bd":3,"ba":2.5,"g":11,"z":"98006","lat":47.554,"lng":-122.151},{"id":"4054500180","c":3,"p":985000,"s":4030,"bd":4,"ba":3.2,"g":11,"z":"98077","lat":47.7235,"lng":-122.039},{"id":"8106100105","c":3,"p":3850000,"s":5770,"bd":4,"ba":4.2,"g":11,"z":"98040","lat":47.585,"lng":-122.222},{"id":"3025300095","c":3,"p":2500000,"s":4300,"bd":4,"ba":4.5,"g":11,"z":"98039","lat":47.6218,"lng":-122.237},{"id":"1651800030","c":3,"p":1650000,"s":2920,"bd":4,"ba":2.2,"g":11,"z":"98004","lat":47.6237,"lng":-122.228},{"id":"7237500530","c":3,"p":1037000,"s":4440,"bd":4,"ba":3.5,"g":11,"z":"98059","lat":47.5294,"lng":-122.137},{"id":"4131900042","c":3,"p":2000000,"s":6490,"bd":5,"ba":4.2,"g":11,"z":"98040","lat":47.5728,"lng":-122.205},{"id":"98000750","c":3,"p":1165000,"s":4220,"bd":5,"ba":3.8,"g":11,"z":"98075","lat":47.5869,"lng":-121.967},{"id":"2024069008","c":3,"p":2200000,"s":5990,"bd":5,"ba":4.8,"g":11,"z":"98027","lat":47.5554,"lng":-122.077},{"id":"9301300270","c":3,"p":1325000,"s":3180,"bd":3,"ba":3.0,"g":11,"z":"98109","lat":47.6377,"lng":-122.342},{"id":"5608010750","c":3,"p":1160000,"s":4190,"bd":4,"ba":3.5,"g":11,"z":"98027","lat":47.5518,"lng":-122.096},{"id":"2944010240","c":3,"p":988000,"s":4040,"bd":4,"ba":3.0,"g":11,"z":"98052","lat":47.7205,"lng":-122.127},{"id":"629400480","c":3,"p":775000,"s":3010,"bd":4,"ba":2.8,"g":11,"z":"98075","lat":47.5895,"lng":-121.994},{"id":"8043700300","c":3,"p":2700000,"s":4420,"bd":4,"ba":3.2,"g":11,"z":"98008","lat":47.572,"lng":-122.102},{"id":"8161000210","c":4,"p":530000,"s":3150,"bd":3,"ba":2.5,"g":9,"z":"98014","lat":47.6455,"lng":-121.901},{"id":"5450900140","c":4,"p":830000,"s":3040,"bd":5,"ba":3.0,"g":9,"z":"98040","lat":47.5562,"lng":-122.22},{"id":"2880100160","c":4,"p":1010000,"s":3350,"bd":4,"ba":3.5,"g":9,"z":"98117","lat":47.6782,"lng":-122.365},{"id":"7504001430","c":4,"p":539000,"s":1740,"bd":3,"ba":1.5,"g":9,"z":"98074","lat":47.6276,"lng":-122.053},{"id":"6192410760","c":4,"p":690000,"s":2700,"bd":4,"ba":2.5,"g":9,"z":"98052","lat":47.7041,"lng":-122.116},{"id":"1175001075","c":4,"p":957000,"s":2370,"bd":4,"ba":3.0,"g":9,"z":"98107","lat":47.6718,"lng":-122.394},{"id":"3629980920","c":4,"p":645000,"s":2330,"bd":4,"ba":2.8,"g":9,"z":"98029","lat":47.5527,"lng":-121.99},{"id":"2770605550","c":4,"p":1135000,"s":2960,"bd":4,"ba":3.2,"g":9,"z":"98119","lat":47.6526,"lng":-122.372},{"id":"868002335","c":4,"p":1430000,"s":2710,"bd":3,"ba":2.8,"g":9,"z":"98177","lat":47.7039,"lng":-122.385},{"id":"6669250100","c":4,"p":512000,"s":2600,"bd":4,"ba":2.5,"g":9,"z":"98056","lat":47.5146,"lng":-122.188},{"id":"3304300210","c":4,"p":572000,"s":2700,"bd":4,"ba":2.8,"g":9,"z":"98059","lat":47.4831,"lng":-122.135},{"id":"3022079094","c":4,"p":675000,"s":3320,"bd":4,"ba":2.5,"g":9,"z":"98010","lat":47.3637,"lng":-121.955},{"id":"9272200810","c":4,"p":1218000,"s":3470,"bd":4,"ba":3.0,"g":9,"z":"98116","lat":47.5917,"lng":-122.386},{"id":"7683900200","c":4,"p":380000,"s":3450,"bd":5,"ba":3.0,"g":9,"z":"98023","lat":47.2813,"lng":-122.345},{"id":"1604602050","c":4,"p":460000,"s":1610,"bd":3,"ba":2.5,"g":9,"z":"98118","lat":47.5674,"lng":-122.29},{"id":"4395600060","c":4,"p":935000,"s":1780,"bd":2,"ba":2.5,"g":9,"z":"98004","lat":47.6132,"lng":-122.21},{"id":"7856620870","c":4,"p":855000,"s":3120,"bd":3,"ba":2.0,"g":9,"z":"98006","lat":47.5612,"lng":-122.15},{"id":"5317100780","c":4,"p":1300000,"s":2330,"bd":4,"ba":3.2,"g":9,"z":"98112","lat":47.6264,"lng":-122.283},{"id":"9113200180","c":4,"p":852500,"s":3480,"bd":4,"ba":2.5,"g":9,"z":"98052","lat":47.6841,"lng":-122.161},{"id":"7203220310","c":4,"p":839990,"s":3660,"bd":4,"ba":2.8,"g":9,"z":"98053","lat":47.6845,"lng":-122.017},{"id":"3982700088","c":4,"p":910000,"s":2720,"bd":3,"ba":2.5,"g":9,"z":"98033","lat":47.6894,"lng":-122.195},{"id":"952003585","c":4,"p":866500,"s":3080,"bd":4,"ba":3.5,"g":9,"z":"98126","lat":47.5662,"lng":-122.379},{"id":"3331500455","c":4,"p":474950,"s":1850,"bd":3,"ba":2.2,"g":9,"z":"98118","lat":47.5525,"lng":-122.273},{"id":"3625049088","c":4,"p":2271150,"s":4040,"bd":4,"ba":3.2,"g":9,"z":"98039","lat":47.6155,"lng":-122.238},{"id":"205000410","c":4,"p":630000,"s":2320,"bd":3,"ba":2.5,"g":9,"z":"98053","lat":47.6304,"lng":-121.988},{"id":"9113200020","c":4,"p":717000,"s":2480,"bd":3,"ba":2.5,"g":9,"z":"98052","lat":47.684,"lng":-122.164},{"id":"1972200847","c":4,"p":625000,"s":1730,"bd":3,"ba":2.5,"g":9,"z":"98103","lat":47.653,"lng":-122.352},{"id":"1473120140","c":4,"p":460000,"s":2620,"bd":4,"ba":2.5,"g":9,"z":"98058","lat":47.4357,"lng":-122.159},{"id":"1088810160","c":4,"p":650000,"s":3990,"bd":5,"ba":3.5,"g":9,"z":"98011","lat":47.741,"lng":-122.208},{"id":"4217401180","c":4,"p":1365000,"s":2090,"bd":3,"ba":2.5,"g":9,"z":"98105","lat":47.6567,"lng":-122.281},{"id":"3575305495","c":4,"p":660000,"s":3740,"bd":5,"ba":2.2,"g":9,"z":"98074","lat":47.6234,"lng":-122.059},{"id":"7853301400","c":4,"p":625000,"s":3550,"bd":4,"ba":2.5,"g":9,"z":"98065","lat":47.5422,"lng":-121.888},{"id":"1026069163","c":4,"p":630000,"s":2460,"bd":3,"ba":2.5,"g":9,"z":"98077","lat":47.7602,"lng":-122.022},{"id":"5315100784","c":4,"p":1199500,"s":3240,"bd":4,"ba":2.5,"g":9,"z":"98040","lat":47.5825,"lng":-122.242},{"id":"811000055","c":4,"p":1280000,"s":3260,"bd":4,"ba":3.0,"g":9,"z":"98109","lat":47.6314,"lng":-122.353},{"id":"1336800065","c":4,"p":1328000,"s":3260,"bd":4,"ba":2.2,"g":9,"z":"98112","lat":47.6272,"lng":-122.312},{"id":"3630121060","c":4,"p":740000,"s":3060,"bd":4,"ba":3.5,"g":9,"z":"98029","lat":47.555,"lng":-122.0},{"id":"8651580310","c":4,"p":621138,"s":2180,"bd":3,"ba":2.2,"g":9,"z":"98074","lat":47.6482,"lng":-122.072},{"id":"925059311","c":4,"p":810000,"s":2910,"bd":4,"ba":2.5,"g":9,"z":"98033","lat":47.6659,"lng":-122.172},{"id":"4039700080","c":4,"p":670000,"s":1930,"bd":4,"ba":1.8,"g":9,"z":"98008","lat":47.6158,"lng":-122.108},{"id":"2927600435","c":4,"p":573500,"s":2200,"bd":3,"ba":1.0,"g":9,"z":"98166","lat":47.4527,"lng":-122.372},{"id":"7511210310","c":4,"p":720500,"s":3350,"bd":4,"ba":2.5,"g":9,"z":"98053","lat":47.6506,"lng":-122.036},{"id":"9201000320","c":4,"p":765000,"s":2620,"bd":4,"ba":2.2,"g":9,"z":"98075","lat":47.584,"lng":-122.077},{"id":"1422029138","c":4,"p":565000,"s":2030,"bd":3,"ba":2.5,"g":9,"z":"98070","lat":47.3942,"lng":-122.515},{"id":"8725950220","c":4,"p":910000,"s":2030,"bd":3,"ba":2.5,"g":9,"z":"98004","lat":47.6213,"lng":-122.2},{"id":"9471201175","c":4,"p":1580000,"s":3760,"bd":4,"ba":3.2,"g":9,"z":"98105","lat":47.6687,"lng":-122.264},{"id":"617000030","c":4,"p":887500,"s":4230,"bd":3,"ba":3.0,"g":9,"z":"98166","lat":47.4176,"lng":-122.343},{"id":"2493200040","c":4,"p":620000,"s":2910,"bd":2,"ba":2.2,"g":9,"z":"98136","lat":47.5279,"lng":-122.387},{"id":"3630200520","c":4,"p":775000,"s":2580,"bd":4,"ba":2.5,"g":9,"z":"98029","lat":47.5416,"lng":-121.994},{"id":"9328510100","c":4,"p":699000,"s":2550,"bd":4,"ba":2.5,"g":9,"z":"98008","lat":47.6441,"lng":-122.113},{"id":"3321069006","c":4,"p":905000,"s":3520,"bd":3,"ba":2.5,"g":9,"z":"98092","lat":47.2687,"lng":-122.056},{"id":"1923039022","c":4,"p":700000,"s":1679,"bd":2,"ba":1.8,"g":9,"z":"98070","lat":47.463,"lng":-122.475},{"id":"9408300180","c":4,"p":682000,"s":3030,"bd":4,"ba":2.5,"g":9,"z":"98072","lat":47.7468,"lng":-122.112},{"id":"9161100075","c":4,"p":673000,"s":2580,"bd":4,"ba":2.2,"g":9,"z":"98116","lat":47.5674,"lng":-122.392},{"id":"3025300250","c":4,"p":1620000,"s":2350,"bd":4,"ba":2.2,"g":9,"z":"98039","lat":47.6232,"lng":-122.236},{"id":"5210200077","c":4,"p":799000,"s":2590,"bd":4,"ba":2.5,"g":9,"z":"98115","lat":47.6978,"lng":-122.284},{"id":"624110020","c":4,"p":730000,"s":3460,"bd":3,"ba":3.0,"g":9,"z":"98077","lat":47.7315,"lng":-122.058},{"id":"7846200070","c":4,"p":595000,"s":3370,"bd":3,"ba":2.5,"g":9,"z":"98045","lat":47.5008,"lng":-121.776},{"id":"8956200070","c":4,"p":447500,"s":2425,"bd":4,"ba":2.5,"g":9,"z":"98001","lat":47.3003,"lng":-122.263},{"id":"5535600520","c":4,"p":550000,"s":2850,"bd":4,"ba":2.5,"g":9,"z":"98019","lat":47.7353,"lng":-121.973},{"id":"3211230260","c":4,"p":399950,"s":2420,"bd":4,"ba":2.0,"g":9,"z":"98092","lat":47.3131,"lng":-122.115},{"id":"11520370","c":4,"p":738000,"s":2620,"bd":3,"ba":2.5,"g":9,"z":"98052","lat":47.6972,"lng":-122.116},{"id":"3629760110","c":4,"p":634000,"s":2490,"bd":3,"ba":2.5,"g":9,"z":"98029","lat":47.5451,"lng":-122.014},{"id":"5215200050","c":4,"p":750000,"s":2960,"bd":3,"ba":2.5,"g":9,"z":"98070","lat":47.4,"lng":-122.42},{"id":"7739100155","c":4,"p":750000,"s":2850,"bd":5,"ba":1.8,"g":9,"z":"98155","lat":47.7503,"lng":-122.28},{"id":"3904902510","c":4,"p":690000,"s":2670,"bd":4,"ba":2.5,"g":9,"z":"98029","lat":47.5627,"lng":-122.018},{"id":"4389201075","c":4,"p":1900000,"s":3680,"bd":4,"ba":2.5,"g":9,"z":"98004","lat":47.6154,"lng":-122.214},{"id":"8895800090","c":4,"p":1033890,"s":3270,"bd":4,"ba":3.2,"g":9,"z":"98052","lat":47.6966,"lng":-122.133},{"id":"1313300340","c":4,"p":470000,"s":2310,"bd":4,"ba":2.5,"g":9,"z":"98019","lat":47.7351,"lng":-121.964},{"id":"1959700225","c":4,"p":720000,"s":1370,"bd":3,"ba":1.8,"g":9,"z":"98102","lat":47.6434,"lng":-122.324},{"id":"2770602360","c":4,"p":671000,"s":1890,"bd":4,"ba":2.8,"g":9,"z":"98199","lat":47.6472,"lng":-122.383},{"id":"9274200365","c":4,"p":920000,"s":2880,"bd":4,"ba":2.8,"g":9,"z":"98116","lat":47.5874,"lng":-122.387},{"id":"1336800010","c":4,"p":1335000,"s":4200,"bd":5,"ba":2.2,"g":9,"z":"98112","lat":47.6284,"lng":-122.312},{"id":"11510700","c":4,"p":755000,"s":2660,"bd":4,"ba":2.5,"g":9,"z":"98052","lat":47.6972,"lng":-122.104},{"id":"1310430130","c":4,"p":459000,"s":2790,"bd":4,"ba":2.8,"g":9,"z":"98058","lat":47.4362,"lng":-122.109},{"id":"809002295","c":4,"p":1169000,"s":2810,"bd":5,"ba":2.5,"g":9,"z":"98109","lat":47.6367,"lng":-122.35},{"id":"2320069014","c":4,"p":495000,"s":2660,"bd":3,"ba":2.0,"g":9,"z":"98022","lat":47.2098,"lng":-122.016},{"id":"2125049024","c":4,"p":1325000,"s":2870,"bd":4,"ba":2.2,"g":9,"z":"98112","lat":47.6329,"lng":-122.31},{"id":"6308000010","c":4,"p":585000,"s":2290,"bd":3,"ba":2.5,"g":9,"z":"98006","lat":47.5443,"lng":-122.172},{"id":"7205800040","c":4,"p":450000,"s":2820,"bd":4,"ba":2.5,"g":9,"z":"98003","lat":47.3426,"lng":-122.321},{"id":"3860400060","c":4,"p":1130000,"s":2660,"bd":4,"ba":2.5,"g":9,"z":"98004","lat":47.5894,"lng":-122.197},{"id":"3629920600","c":4,"p":619500,"s":2170,"bd":3,"ba":2.5,"g":9,"z":"98029","lat":47.5458,"lng":-121.996},{"id":"629000510","c":4,"p":1185000,"s":3020,"bd":4,"ba":2.8,"g":9,"z":"98004","lat":47.5866,"lng":-122.201},{"id":"3622069114","c":4,"p":655000,"s":3420,"bd":4,"ba":3.5,"g":9,"z":"98010","lat":47.3554,"lng":-121.986},{"id":"2937300050","c":4,"p":988990,"s":4150,"bd":4,"ba":4.8,"g":9,"z":"98052","lat":47.7047,"lng":-122.123},{"id":"1560930450","c":4,"p":567500,"s":3090,"bd":3,"ba":2.5,"g":9,"z":"98038","lat":47.4032,"lng":-122.023},{"id":"7215400280","c":4,"p":345000,"s":2670,"bd":3,"ba":2.2,"g":9,"z":"98042","lat":47.3347,"lng":-122.077},{"id":"1338600175","c":4,"p":940000,"s":1890,"bd":4,"ba":2.2,"g":9,"z":"98112","lat":47.6316,"lng":-122.303},{"id":"9485950340","c":4,"p":408000,"s":2800,"bd":3,"ba":2.2,"g":9,"z":"98042","lat":47.3507,"lng":-122.089},{"id":"7732410390","c":4,"p":749000,"s":2670,"bd":3,"ba":2.5,"g":9,"z":"98007","lat":47.6599,"lng":-122.146},{"id":"1896700080","c":4,"p":855000,"s":3090,"bd":4,"ba":3.0,"g":9,"z":"98005","lat":47.6359,"lng":-122.159},{"id":"3886902950","c":4,"p":860000,"s":3380,"bd":4,"ba":3.5,"g":9,"z":"98033","lat":47.6839,"lng":-122.19},{"id":"9558050360","c":4,"p":544800,"s":3190,"bd":5,"ba":2.8,"g":9,"z":"98058","lat":47.4575,"lng":-122.119},{"id":"4077800376","c":4,"p":600000,"s":2980,"bd":5,"ba":2.2,"g":9,"z":"98125","lat":47.7048,"lng":-122.279},{"id":"7215730310","c":4,"p":726000,"s":2970,"bd":5,"ba":3.0,"g":9,"z":"98075","lat":47.598,"lng":-122.019},{"id":"8691370500","c":4,"p":751000,"s":2840,"bd":3,"ba":2.5,"g":9,"z":"98075","lat":47.6006,"lng":-121.978},{"id":"1773600264","c":4,"p":705000,"s":3250,"bd":5,"ba":3.5,"g":9,"z":"98106","lat":47.5618,"lng":-122.362},{"id":"9184700535","c":4,"p":1075000,"s":2820,"bd":4,"ba":2.2,"g":9,"z":"98122","lat":47.6097,"lng":-122.287},{"id":"9465900500","c":4,"p":605500,"s":2830,"bd":3,"ba":2.5,"g":9,"z":"98072","lat":47.7462,"lng":-122.172},{"id":"5152800030","c":4,"p":485000,"s":2910,"bd":4,"ba":2.8,"g":9,"z":"98003","lat":47.3397,"lng":-122.322},{"id":"5454200080","c":4,"p":968000,"s":2630,"bd":4,"ba":1.8,"g":9,"z":"98040","lat":47.5459,"lng":-122.228},{"id":"6613000015","c":4,"p":1130000,"s":3180,"bd":4,"ba":3.0,"g":9,"z":"98105","lat":47.6583,"lng":-122.273},{"id":"6116500075","c":4,"p":673000,"s":2990,"bd":4,"ba":2.5,"g":9,"z":"98166","lat":47.4508,"lng":-122.359},{"id":"3905090080","c":4,"p":642000,"s":2560,"bd":4,"ba":2.5,"g":9,"z":"98029","lat":47.5717,"lng":-121.991},{"id":"2523069172","c":4,"p":616500,"s":3580,"bd":3,"ba":2.5,"g":9,"z":"98027","lat":47.4453,"lng":-121.98},{"id":"9274203036","c":4,"p":930000,"s":2950,"bd":3,"ba":3.2,"g":9,"z":"98116","lat":47.5852,"lng":-122.391},{"id":"1152700120","c":4,"p":370000,"s":2490,"bd":4,"ba":3.0,"g":9,"z":"98042","lat":47.3509,"lng":-122.165},{"id":"5437200080","c":4,"p":350000,"s":2500,"bd":4,"ba":2.8,"g":9,"z":"98003","lat":47.3381,"lng":-122.332},{"id":"9408300380","c":4,"p":605000,"s":2670,"bd":3,"ba":2.5,"g":9,"z":"98072","lat":47.7443,"lng":-122.114},{"id":"3825310130","c":4,"p":751000,"s":3090,"bd":4,"ba":3.2,"g":9,"z":"98052","lat":47.7058,"lng":-122.131},{"id":"686050100","c":4,"p":975000,"s":3130,"bd":4,"ba":3.5,"g":9,"z":"98005","lat":47.5932,"lng":-122.159},{"id":"8651610580","c":4,"p":715000,"s":2570,"bd":4,"ba":2.5,"g":9,"z":"98074","lat":47.6378,"lng":-122.065},{"id":"8961980290","c":4,"p":666500,"s":2860,"bd":4,"ba":2.5,"g":9,"z":"98074","lat":47.6067,"lng":-122.017},{"id":"3885808210","c":4,"p":1000000,"s":2044,"bd":3,"ba":2.5,"g":9,"z":"98033","lat":47.6791,"lng":-122.209},{"id":"4219400580","c":4,"p":1688000,"s":3000,"bd":4,"ba":2.5,"g":9,"z":"98105","lat":47.6571,"lng":-122.277},{"id":"1726069060","c":4,"p":655000,"s":2890,"bd":4,"ba":2.8,"g":9,"z":"98077","lat":47.7454,"lng":-122.061},{"id":"6792100090","c":4,"p":683000,"s":2620,"bd":4,"ba":2.5,"g":9,"z":"98052","lat":47.6732,"lng":-122.143},{"id":"6169900790","c":4,"p":2400000,"s":5480,"bd":6,"ba":4.5,"g":9,"z":"98119","lat":47.6307,"lng":-122.367},{"id":"1727000680","c":4,"p":699000,"s":2440,"bd":4,"ba":2.5,"g":9,"z":"98005","lat":47.6401,"lng":-122.168},{"id":"3223039109","c":4,"p":819000,"s":2750,"bd":3,"ba":2.5,"g":9,"z":"98070","lat":47.4376,"lng":-122.456},{"id":"3134100023","c":4,"p":1250000,"s":4980,"bd":4,"ba":4.2,"g":9,"z":"98052","lat":47.6406,"lng":-122.101},{"id":"3845101070","c":4,"p":425996,"s":2568,"bd":4,"ba":2.5,"g":9,"z":"98092","lat":47.2596,"lng":-122.194},{"id":"9510970310","c":4,"p":789500,"s":3010,"bd":4,"ba":2.5,"g":9,"z":"98052","lat":47.6647,"lng":-122.08},{"id":"2523039315","c":4,"p":481000,"s":2580,"bd":3,"ba":2.0,"g":9,"z":"98166","lat":47.4561,"lng":-122.361},{"id":"5701500030","c":4,"p":1505000,"s":3480,"bd":4,"ba":3.5,"g":9,"z":"98144","lat":47.5859,"lng":-122.291},{"id":"3629921120","c":4,"p":765000,"s":2660,"bd":4,"ba":2.5,"g":9,"z":"98029","lat":47.5445,"lng":-121.996},{"id":"7853280370","c":4,"p":805000,"s":4600,"bd":5,"ba":4.5,"g":9,"z":"98065","lat":47.5381,"lng":-121.86},{"id":"2782100280","c":4,"p":672500,"s":2620,"bd":4,"ba":2.8,"g":9,"z":"98075","lat":47.5965,"lng":-122.038},{"id":"8078360080","c":4,"p":650000,"s":2400,"bd":4,"ba":2.5,"g":9,"z":"98029","lat":47.5707,"lng":-122.022},{"id":"7853430180","c":4,"p":699188,"s":3250,"bd":4,"ba":3.2,"g":9,"z":"98065","lat":47.5178,"lng":-121.887},{"id":"8665000040","c":4,"p":360000,"s":3200,"bd":4,"ba":2.5,"g":9,"z":"98188","lat":47.4318,"lng":-122.286},{"id":"2767602855","c":4,"p":750000,"s":2160,"bd":5,"ba":3.5,"g":9,"z":"98107","lat":47.6726,"lng":-122.39},{"id":"6788200596","c":4,"p":1285000,"s":3440,"bd":4,"ba":3.5,"g":9,"z":"98112","lat":47.6408,"lng":-122.307},{"id":"1085623740","c":4,"p":491000,"s":2815,"bd":5,"ba":3.5,"g":9,"z":"98030","lat":47.3424,"lng":-122.179},{"id":"3024059057","c":4,"p":1650000,"s":5550,"bd":4,"ba":4.5,"g":9,"z":"98040","lat":47.5455,"lng":-122.214},{"id":"1425069071","c":4,"p":875000,"s":3230,"bd":4,"ba":2.5,"g":9,"z":"98053","lat":47.6544,"lng":-121.998},{"id":"524059241","c":4,"p":870000,"s":2780,"bd":4,"ba":1.8,"g":9,"z":"98004","lat":47.595,"lng":-122.203},{"id":"1825079005","c":4,"p":739000,"s":2800,"bd":4,"ba":2.5,"g":9,"z":"98014","lat":47.6586,"lng":-121.962},{"id":"9211000110","c":4,"p":525000,"s":3130,"bd":4,"ba":2.5,"g":9,"z":"98059","lat":47.4997,"lng":-122.151},{"id":"3024059126","c":4,"p":1195000,"s":3420,"bd":5,"ba":3.0,"g":9,"z":"98040","lat":47.5333,"lng":-122.217},{"id":"5469502170","c":4,"p":459950,"s":2760,"bd":4,"ba":2.0,"g":9,"z":"98042","lat":47.3818,"lng":-122.165},{"id":"6977000080","c":4,"p":560000,"s":2280,"bd":4,"ba":2.5,"g":9,"z":"98034","lat":47.7099,"lng":-122.229},{"id":"2592210510","c":4,"p":850000,"s":3120,"bd":3,"ba":2.5,"g":9,"z":"98006","lat":47.5507,"lng":-122.141},{"id":"2111011060","c":4,"p":507000,"s":3850,"bd":5,"ba":3.2,"g":9,"z":"98092","lat":47.3324,"lng":-122.168},{"id":"1233100710","c":4,"p":909950,"s":3050,"bd":5,"ba":3.8,"g":9,"z":"98033","lat":47.6819,"lng":-122.172},{"id":"3879900754","c":4,"p":779000,"s":1580,"bd":3,"ba":2.5,"g":9,"z":"98119","lat":47.6276,"lng":-122.359},{"id":"4104910040","c":4,"p":548000,"s":2440,"bd":4,"ba":2.5,"g":9,"z":"98056","lat":47.5318,"lng":-122.176},{"id":"9528100963","c":4,"p":719000,"s":1833,"bd":3,"ba":3.0,"g":9,"z":"98115","lat":47.6827,"lng":-122.325},{"id":"1088800470","c":4,"p":547500,"s":2550,"bd":3,"ba":2.5,"g":9,"z":"98011","lat":47.739,"lng":-122.203},{"id":"6646200770","c":4,"p":610000,"s":2410,"bd":4,"ba":2.5,"g":9,"z":"98074","lat":47.6242,"lng":-122.04},{"id":"2424059163","c":5,"p":1240000,"s":5430,"bd":5,"ba":3.5,"g":10,"z":"98006","lat":47.5476,"lng":-122.116},{"id":"8562790480","c":5,"p":654000,"s":2220,"bd":3,"ba":2.5,"g":10,"z":"98027","lat":47.5311,"lng":-122.074},{"id":"5015000346","c":5,"p":1047000,"s":3500,"bd":4,"ba":3.5,"g":10,"z":"98112","lat":47.628,"lng":-122.299},{"id":"824059331","c":5,"p":1610000,"s":3530,"bd":5,"ba":3.8,"g":10,"z":"98040","lat":47.5761,"lng":-122.205},{"id":"8029770190","c":5,"p":745000,"s":3400,"bd":4,"ba":2.5,"g":10,"z":"98059","lat":47.5066,"lng":-122.146},{"id":"1829300520","c":5,"p":746500,"s":3460,"bd":4,"ba":2.5,"g":10,"z":"98074","lat":47.637,"lng":-122.04},{"id":"4401200010","c":5,"p":795000,"s":3100,"bd":4,"ba":2.8,"g":10,"z":"98052","lat":47.6859,"lng":-122.109},{"id":"2553300270","c":5,"p":649000,"s":2980,"bd":4,"ba":2.5,"g":10,"z":"98075","lat":47.5857,"lng":-122.027},{"id":"715010530","c":5,"p":1881580,"s":4410,"bd":5,"ba":3.5,"g":10,"z":"98006","lat":47.5382,"lng":-122.111},{"id":"3271800910","c":5,"p":1356920,"s":4270,"bd":4,"ba":3.5,"g":10,"z":"98199","lat":47.6474,"lng":-122.411},{"id":"3317500100","c":5,"p":998000,"s":3760,"bd":5,"ba":3.5,"g":10,"z":"98040","lat":47.5605,"lng":-122.225},{"id":"1370801440","c":5,"p":1400000,"s":3520,"bd":4,"ba":2.5,"g":10,"z":"98199","lat":47.6429,"lng":-122.412},{"id":"7853380570","c":5,"p":701000,"s":3340,"bd":4,"ba":2.5,"g":10,"z":"98065","lat":47.5167,"lng":-121.885},{"id":"5152700060","c":5,"p":465000,"s":4250,"bd":6,"ba":3.2,"g":10,"z":"98003","lat":47.34,"lng":-122.327},{"id":"6202600070","c":5,"p":1102030,"s":3890,"bd":5,"ba":2.5,"g":10,"z":"98177","lat":47.7291,"lng":-122.363},{"id":"5104531120","c":5,"p":775000,"s":3750,"bd":5,"ba":2.8,"g":10,"z":"98038","lat":47.3525,"lng":-122.002},{"id":"7237500110","c":5,"p":1208000,"s":4250,"bd":4,"ba":2.8,"g":10,"z":"98059","lat":47.5297,"lng":-122.14},{"id":"3522049063","c":5,"p":639900,"s":3380,"bd":4,"ba":2.5,"g":10,"z":"98001","lat":47.3511,"lng":-122.266},{"id":"622100074","c":5,"p":720000,"s":2440,"bd":3,"ba":2.8,"g":10,"z":"98072","lat":47.7672,"lng":-122.161},{"id":"1137800460","c":5,"p":465000,"s":2870,"bd":3,"ba":2.5,"g":10,"z":"98003","lat":47.2769,"lng":-122.333},{"id":"2323089009","c":5,"p":855000,"s":4030,"bd":4,"ba":3.5,"g":10,"z":"98045","lat":47.4619,"lng":-121.744},{"id":"224069169","c":5,"p":800000,"s":2540,"bd":4,"ba":3.8,"g":10,"z":"98075","lat":47.5882,"lng":-122.01},{"id":"7701930050","c":5,"p":570000,"s":3150,"bd":3,"ba":2.5,"g":10,"z":"98058","lat":47.447,"lng":-122.088},{"id":"9290850810","c":5,"p":950000,"s":3770,"bd":4,"ba":2.5,"g":10,"z":"98053","lat":47.6908,"lng":-122.051},{"id":"4139440100","c":5,"p":810000,"s":2610,"bd":3,"ba":2.5,"g":10,"z":"98006","lat":47.5535,"lng":-122.115},{"id":"8691360380","c":5,"p":865000,"s":3560,"bd":4,"ba":2.5,"g":10,"z":"98075","lat":47.6002,"lng":-121.98},{"id":"11501310","c":5,"p":715000,"s":3060,"bd":3,"ba":3.2,"g":10,"z":"98052","lat":47.6971,"lng":-122.101},{"id":"4139430340","c":5,"p":1029900,"s":3680,"bd":3,"ba":2.5,"g":10,"z":"98006","lat":47.5484,"lng":-122.119},{"id":"8691350200","c":5,"p":884250,"s":3840,"bd":4,"ba":2.5,"g":10,"z":"98075","lat":47.5953,"lng":-121.986},{"id":"6352600680","c":5,"p":798000,"s":2849,"bd":3,"ba":2.5,"g":10,"z":"98074","lat":47.6487,"lng":-122.079},{"id":"3885804390","c":5,"p":1500000,"s":3470,"bd":4,"ba":3.2,"g":10,"z":"98033","lat":47.6845,"lng":-122.209},{"id":"7424700145","c":5,"p":1190000,"s":3380,"bd":3,"ba":3.5,"g":10,"z":"98122","lat":47.6162,"lng":-122.288},{"id":"1621069045","c":5,"p":600000,"s":3870,"bd":4,"ba":2.5,"g":10,"z":"98010","lat":47.3109,"lng":-122.045},{"id":"7511000140","c":5,"p":994000,"s":3470,"bd":4,"ba":2.5,"g":10,"z":"98040","lat":47.547,"lng":-122.219},{"id":"8089510170","c":5,"p":935000,"s":4230,"bd":5,"ba":4.5,"g":10,"z":"98006","lat":47.5444,"lng":-122.131},{"id":"293700110","c":5,"p":775000,"s":3890,"bd":4,"ba":2.5,"g":10,"z":"98077","lat":47.7749,"lng":-122.048},{"id":"6072800205","c":5,"p":2375000,"s":3220,"bd":4,"ba":2.5,"g":10,"z":"98006","lat":47.5692,"lng":-122.192},{"id":"98020140","c":5,"p":765000,"s":3010,"bd":4,"ba":4.0,"g":10,"z":"98075","lat":47.5833,"lng":-121.97},{"id":"425069136","c":5,"p":894400,"s":3100,"bd":3,"ba":2.5,"g":10,"z":"98053","lat":47.6854,"lng":-122.048},{"id":"5021900140","c":5,"p":1679000,"s":4830,"bd":5,"ba":4.2,"g":10,"z":"98040","lat":47.5774,"lng":-122.222},{"id":"3528900086","c":5,"p":1307000,"s":2800,"bd":5,"ba":3.2,"g":10,"z":"98109","lat":47.6421,"lng":-122.35},{"id":"723000226","c":5,"p":1250000,"s":2780,"bd":3,"ba":2.8,"g":10,"z":"98105","lat":47.6569,"lng":-122.286},{"id":"8562710250","c":5,"p":890000,"s":4420,"bd":4,"ba":4.2,"g":10,"z":"98027","lat":47.5404,"lng":-122.073},{"id":"2579500181","c":5,"p":1330000,"s":3440,"bd":4,"ba":3.5,"g":10,"z":"98040","lat":47.5374,"lng":-122.216},{"id":"9512200050","c":5,"p":551000,"s":3090,"bd":5,"ba":3.8,"g":10,"z":"98058","lat":47.4594,"lng":-122.133},{"id":"1959701800","c":5,"p":2147500,"s":4660,"bd":3,"ba":3.5,"g":10,"z":"98102","lat":47.6465,"lng":-122.319},{"id":"272000945","c":5,"p":826000,"s":2330,"bd":3,"ba":3.2,"g":10,"z":"98144","lat":47.5882,"lng":-122.295},{"id":"2524049215","c":5,"p":1564350,"s":3730,"bd":4,"ba":3.8,"g":10,"z":"98040","lat":47.5355,"lng":-122.242},{"id":"7533800295","c":5,"p":1750000,"s":3460,"bd":4,"ba":3.2,"g":10,"z":"98115","lat":47.6849,"lng":-122.273},{"id":"1277000240","c":5,"p":735000,"s":2540,"bd":3,"ba":2.5,"g":10,"z":"98007","lat":47.6239,"lng":-122.144},{"id":"98020630","c":5,"p":889000,"s":4070,"bd":4,"ba":3.5,"g":10,"z":"98075","lat":47.5805,"lng":-121.97},{"id":"1231000895","c":5,"p":986000,"s":2840,"bd":4,"ba":3.5,"g":10,"z":"98118","lat":47.5543,"lng":-122.268},{"id":"7856640460","c":5,"p":950000,"s":3800,"bd":4,"ba":2.8,"g":10,"z":"98006","lat":47.5689,"lng":-122.156},{"id":"1336800015","c":5,"p":1506000,"s":3660,"bd":4,"ba":3.2,"g":10,"z":"98112","lat":47.6283,"lng":-122.312},{"id":"6061500100","c":5,"p":1174660,"s":4310,"bd":6,"ba":3.5,"g":10,"z":"98059","lat":47.5297,"lng":-122.155},{"id":"4389200753","c":5,"p":1565000,"s":2810,"bd":4,"ba":2.8,"g":10,"z":"98004","lat":47.6159,"lng":-122.211},{"id":"3345100030","c":5,"p":750000,"s":3270,"bd":3,"ba":2.2,"g":10,"z":"98056","lat":47.5197,"lng":-122.191},{"id":"2725069121","c":5,"p":813000,"s":3320,"bd":4,"ba":2.5,"g":10,"z":"98074","lat":47.6247,"lng":-122.016},{"id":"4094800190","c":5,"p":1190000,"s":3160,"bd":4,"ba":2.5,"g":10,"z":"98040","lat":47.5472,"lng":-122.233},{"id":"4139460390","c":5,"p":995000,"s":3850,"bd":4,"ba":4.5,"g":10,"z":"98006","lat":47.5522,"lng":-122.103},{"id":"2553300030","c":5,"p":648000,"s":2380,"bd":4,"ba":2.5,"g":10,"z":"98075","lat":47.5833,"lng":-122.028},{"id":"7852011070","c":5,"p":1140000,"s":5960,"bd":6,"ba":3.8,"g":10,"z":"98065","lat":47.5398,"lng":-121.869},{"id":"2725069085","c":5,"p":864000,"s":3190,"bd":4,"ba":2.5,"g":10,"z":"98074","lat":47.6216,"lng":-122.015},{"id":"4178700100","c":5,"p":1160000,"s":4240,"bd":4,"ba":2.5,"g":10,"z":"98075","lat":47.6008,"lng":-122.044},{"id":"1370803180","c":5,"p":1776000,"s":3230,"bd":3,"ba":3.2,"g":10,"z":"98199","lat":47.6348,"lng":-122.403},{"id":"5700003640","c":5,"p":2095000,"s":5340,"bd":5,"ba":3.8,"g":10,"z":"98144","lat":47.5795,"lng":-122.285},{"id":"191100275","c":5,"p":1350000,"s":3500,"bd":4,"ba":3.5,"g":10,"z":"98040","lat":47.5641,"lng":-122.221},{"id":"3026059011","c":5,"p":825000,"s":3040,"bd":3,"ba":2.8,"g":10,"z":"98034","lat":47.7108,"lng":-122.225},{"id":"3260570260","c":5,"p":550000,"s":3540,"bd":4,"ba":3.5,"g":10,"z":"98055","lat":47.473,"lng":-122.193},{"id":"7974200456","c":5,"p":910000,"s":2640,"bd":5,"ba":3.0,"g":10,"z":"98115","lat":47.6809,"lng":-122.288},{"id":"518500700","c":5,"p":630000,"s":2550,"bd":2,"ba":2.2,"g":10,"z":"98056","lat":47.5304,"lng":-122.202},{"id":"7856400240","c":5,"p":1620000,"s":3900,"bd":4,"ba":3.0,"g":10,"z":"98006","lat":47.5605,"lng":-122.158},{"id":"8123450450","c":5,"p":1080000,"s":3740,"bd":5,"ba":3.5,"g":10,"z":"98052","lat":47.6628,"lng":-122.143},{"id":"6791050450","c":5,"p":770000,"s":2730,"bd":3,"ba":2.5,"g":10,"z":"98075","lat":47.58,"lng":-122.057},{"id":"4232902335","c":5,"p":1200000,"s":2710,"bd":5,"ba":4.0,"g":10,"z":"98119","lat":47.6346,"lng":-122.364},{"id":"7504030220","c":5,"p":712000,"s":2450,"bd":4,"ba":2.2,"g":10,"z":"98074","lat":47.6351,"lng":-122.06},{"id":"3630200960","c":5,"p":1060000,"s":3880,"bd":4,"ba":3.8,"g":10,"z":"98029","lat":47.5408,"lng":-121.992},{"id":"7511000050","c":5,"p":1100000,"s":2890,"bd":5,"ba":2.8,"g":10,"z":"98040","lat":47.5476,"lng":-122.219},{"id":"1373800295","c":5,"p":1450000,"s":4380,"bd":3,"ba":3.0,"g":10,"z":"98199","lat":47.6452,"lng":-122.411},{"id":"4403600240","c":5,"p":832000,"s":3190,"bd":4,"ba":2.2,"g":10,"z":"98075","lat":47.5933,"lng":-122.075},{"id":"4139380050","c":5,"p":963000,"s":3280,"bd":4,"ba":3.5,"g":10,"z":"98027","lat":47.5642,"lng":-122.126},{"id":"8835800010","c":5,"p":1042000,"s":4920,"bd":4,"ba":4.5,"g":10,"z":"98045","lat":47.4695,"lng":-121.775},{"id":"3221059044","c":5,"p":799950,"s":4220,"bd":4,"ba":3.5,"g":10,"z":"98092","lat":47.2642,"lng":-122.187},{"id":"7856410430","c":5,"p":1385000,"s":5700,"bd":6,"ba":2.8,"g":10,"z":"98006","lat":47.5601,"lng":-122.16},{"id":"5078400215","c":5,"p":1695000,"s":3940,"bd":5,"ba":4.8,"g":10,"z":"98004","lat":47.6232,"lng":-122.205},{"id":"8895800110","c":5,"p":1299890,"s":3870,"bd":5,"ba":4.0,"g":10,"z":"98052","lat":47.6965,"lng":-122.134},{"id":"7852160080","c":5,"p":760000,"s":3720,"bd":4,"ba":3.5,"g":10,"z":"98065","lat":47.536,"lng":-121.858},{"id":"46100350","c":5,"p":1730000,"s":5000,"bd":5,"ba":3.5,"g":10,"z":"98040","lat":47.5665,"lng":-122.21},{"id":"4136980090","c":5,"p":537000,"s":4883,"bd":4,"ba":4.2,"g":10,"z":"98092","lat":47.263,"lng":-122.216},{"id":"2481610170","c":5,"p":965000,"s":3160,"bd":4,"ba":2.2,"g":10,"z":"98072","lat":47.7337,"lng":-122.132},{"id":"4151800410","c":5,"p":1348000,"s":3540,"bd":5,"ba":3.2,"g":10,"z":"98033","lat":47.6643,"lng":-122.202},{"id":"425069102","c":5,"p":730000,"s":3660,"bd":4,"ba":2.8,"g":10,"z":"98053","lat":47.6813,"lng":-122.048},{"id":"2125059124","c":5,"p":955000,"s":3020,"bd":3,"ba":2.2,"g":10,"z":"98005","lat":47.6456,"lng":-122.173},{"id":"3391500050","c":5,"p":1875000,"s":3930,"bd":4,"ba":3.2,"g":10,"z":"98004","lat":47.6259,"lng":-122.194},{"id":"3754501235","c":5,"p":1185000,"s":2510,"bd":3,"ba":2.5,"g":10,"z":"98034","lat":47.7051,"lng":-122.223},{"id":"3528000510","c":5,"p":930800,"s":4150,"bd":5,"ba":2.5,"g":10,"z":"98053","lat":47.6664,"lng":-122.045},{"id":"3758900023","c":5,"p":1130000,"s":3810,"bd":4,"ba":3.2,"g":10,"z":"98033","lat":47.699,"lng":-122.207},{"id":"326069104","c":5,"p":800000,"s":3830,"bd":3,"ba":3.5,"g":10,"z":"98077","lat":47.7641,"lng":-122.023},{"id":"2481630290","c":5,"p":879000,"s":4230,"bd":4,"ba":2.8,"g":10,"z":"98072","lat":47.731,"lng":-122.132},{"id":"1829300130","c":5,"p":795000,"s":3160,"bd":4,"ba":2.5,"g":10,"z":"98074","lat":47.6365,"lng":-122.04},{"id":"1118001835","c":5,"p":1715000,"s":3070,"bd":4,"ba":2.5,"g":10,"z":"98112","lat":47.6325,"lng":-122.29},{"id":"7281300010","c":5,"p":1200000,"s":4310,"bd":3,"ba":3.5,"g":10,"z":"98177","lat":47.7735,"lng":-122.386},{"id":"624110920","c":5,"p":762500,"s":3330,"bd":3,"ba":2.2,"g":10,"z":"98077","lat":47.7262,"lng":-122.06},{"id":"1231000645","c":5,"p":846000,"s":2720,"bd":4,"ba":3.2,"g":10,"z":"98118","lat":47.5554,"lng":-122.267},{"id":"1321720160","c":5,"p":510000,"s":3610,"bd":4,"ba":3.0,"g":10,"z":"98023","lat":47.2911,"lng":-122.342},{"id":"7237550100","c":5,"p":1408760,"s":4920,"bd":4,"ba":4.0,"g":10,"z":"98053","lat":47.6575,"lng":-122.006},{"id":"3860900035","c":5,"p":1940000,"s":4230,"bd":5,"ba":3.5,"g":10,"z":"98004","lat":47.5933,"lng":-122.199},{"id":"3585900785","c":5,"p":930000,"s":3100,"bd":3,"ba":2.5,"g":10,"z":"98177","lat":47.7635,"lng":-122.377},{"id":"9264000010","c":5,"p":535000,"s":2740,"bd":3,"ba":2.0,"g":10,"z":"98001","lat":47.319,"lng":-122.26},{"id":"1370800935","c":5,"p":1400000,"s":2020,"bd":3,"ba":2.0,"g":10,"z":"98199","lat":47.6388,"lng":-122.409},{"id":"4139400630","c":5,"p":860000,"s":2770,"bd":3,"ba":2.5,"g":10,"z":"98006","lat":47.5605,"lng":-122.115},{"id":"269000085","c":5,"p":1195000,"s":3960,"bd":4,"ba":3.5,"g":10,"z":"98199","lat":47.6461,"lng":-122.389},{"id":"1604590190","c":5,"p":775000,"s":3730,"bd":5,"ba":3.5,"g":10,"z":"98075","lat":47.5987,"lng":-122.029},{"id":"2021201000","c":5,"p":980000,"s":3680,"bd":4,"ba":3.0,"g":10,"z":"98199","lat":47.6327,"lng":-122.395},{"id":"9471200200","c":5,"p":2532000,"s":5040,"bd":4,"ba":4.2,"g":10,"z":"98105","lat":47.6702,"lng":-122.26},{"id":"5561400340","c":5,"p":630000,"s":4610,"bd":4,"ba":3.8,"g":10,"z":"98027","lat":47.4599,"lng":-122.0},{"id":"5451300105","c":5,"p":1050000,"s":3470,"bd":3,"ba":2.5,"g":10,"z":"98040","lat":47.5319,"lng":-122.238},{"id":"624110050","c":5,"p":760000,"s":3370,"bd":4,"ba":2.8,"g":10,"z":"98077","lat":47.7309,"lng":-122.058},{"id":"5101402618","c":5,"p":935000,"s":3680,"bd":4,"ba":3.0,"g":10,"z":"98115","lat":47.6956,"lng":-122.311},{"id":"3407700047","c":5,"p":1055000,"s":2990,"bd":3,"ba":3.2,"g":10,"z":"98072","lat":47.746,"lng":-122.138},{"id":"624069035","c":5,"p":2750000,"s":4130,"bd":4,"ba":4.0,"g":10,"z":"98075","lat":47.5968,"lng":-122.083},{"id":"7504110760","c":5,"p":750000,"s":3190,"bd":4,"ba":2.2,"g":10,"z":"98074","lat":47.6323,"lng":-122.039},{"id":"7804700020","c":5,"p":961500,"s":3910,"bd":3,"ba":2.5,"g":10,"z":"98008","lat":47.6374,"lng":-122.12},{"id":"98030530","c":5,"p":745000,"s":3490,"bd":4,"ba":3.2,"g":10,"z":"98075","lat":47.5834,"lng":-121.972},{"id":"4055700030","c":5,"p":1450000,"s":3970,"bd":3,"ba":4.5,"g":10,"z":"98034","lat":47.7183,"lng":-122.258},{"id":"1923000370","c":5,"p":947500,"s":3290,"bd":4,"ba":2.2,"g":10,"z":"98040","lat":47.5639,"lng":-122.216},{"id":"7701930180","c":5,"p":600000,"s":4300,"bd":4,"ba":3.5,"g":10,"z":"98058","lat":47.4472,"lng":-122.092},{"id":"1336800240","c":5,"p":1750000,"s":3510,"bd":6,"ba":3.0,"g":10,"z":"98112","lat":47.6263,"lng":-122.312},{"id":"4233600260","c":5,"p":1255780,"s":4180,"bd":5,"ba":4.0,"g":10,"z":"98075","lat":47.5959,"lng":-122.014},{"id":"7805450870","c":5,"p":909000,"s":3680,"bd":4,"ba":2.5,"g":10,"z":"98006","lat":47.5604,"lng":-122.107},{"id":"9464700340","c":5,"p":1115000,"s":3180,"bd":4,"ba":2.5,"g":10,"z":"98007","lat":47.6388,"lng":-122.149},{"id":"225069013","c":5,"p":806000,"s":2500,"bd":4,"ba":2.5,"g":10,"z":"98053","lat":47.6778,"lng":-121.994},{"id":"8914200220","c":5,"p":560000,"s":3080,"bd":4,"ba":3.0,"g":10,"z":"98003","lat":47.334,"lng":-122.332},{"id":"5700003985","c":5,"p":2250000,"s":4440,"bd":4,"ba":3.5,"g":10,"z":"98144","lat":47.5744,"lng":-122.283},{"id":"9472200060","c":5,"p":1295000,"s":3340,"bd":3,"ba":2.8,"g":10,"z":"98105","lat":47.6665,"lng":-122.27},{"id":"3893100462","c":5,"p":1789950,"s":4360,"bd":5,"ba":3.8,"g":10,"z":"98033","lat":47.6936,"lng":-122.19},{"id":"1778360150","c":5,"p":1240000,"s":6630,"bd":7,"ba":5.5,"g":10,"z":"98006","lat":47.5399,"lng":-122.118},{"id":"5450500010","c":5,"p":975000,"s":2240,"bd":4,"ba":2.2,"g":10,"z":"98040","lat":47.5516,"lng":-122.217},{"id":"4094800260","c":5,"p":1730000,"s":4440,"bd":4,"ba":3.5,"g":10,"z":"98040","lat":47.5472,"lng":-122.235},{"id":"4188000670","c":5,"p":749400,"s":3240,"bd":4,"ba":2.5,"g":10,"z":"98052","lat":47.719,"lng":-122.114},{"id":"2423069170","c":5,"p":770000,"s":2430,"bd":3,"ba":2.5,"g":10,"z":"98027","lat":47.4664,"lng":-121.992},{"id":"4215250310","c":5,"p":828500,"s":3720,"bd":4,"ba":2.5,"g":10,"z":"98072","lat":47.7582,"lng":-122.13},{"id":"1240700170","c":5,"p":1017100,"s":4060,"bd":4,"ba":3.8,"g":10,"z":"98074","lat":47.6051,"lng":-122.053},{"id":"8691330060","c":5,"p":860000,"s":3950,"bd":4,"ba":3.5,"g":10,"z":"98075","lat":47.5945,"lng":-121.981},{"id":"7525530590","c":5,"p":760000,"s":2990,"bd":4,"ba":2.5,"g":10,"z":"98075","lat":47.5601,"lng":-122.037},{"id":"1473060030","c":5,"p":525000,"s":3670,"bd":4,"ba":2.5,"g":10,"z":"98058","lat":47.4617,"lng":-122.159},{"id":"8691440100","c":5,"p":895000,"s":3240,"bd":4,"ba":3.0,"g":10,"z":"98075","lat":47.5919,"lng":-121.975},{"id":"7853220390","c":5,"p":785000,"s":3660,"bd":5,"ba":3.2,"g":10,"z":"98065","lat":47.5337,"lng":-121.86},{"id":"5035300850","c":5,"p":1385000,"s":3290,"bd":5,"ba":3.8,"g":10,"z":"98199","lat":47.653,"lng":-122.415},{"id":"8043700105","c":5,"p":2300000,"s":4360,"bd":4,"ba":4.0,"g":10,"z":"98008","lat":47.5724,"lng":-122.104}];
+
     const REAL_ESTATE_CLUSTERS = [
       {
         cluster: 0,
@@ -1182,12 +1274,13 @@
         price_mean: 401858,
         sqft_median: 1630,
         price_per_sqft: 251.55,
-        beds: "3 bd",
-        baths: "2 ba",
         grade: 7,
         top_zipcodes: "98034, 98115, 98133",
-        photo: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=700&q=80",
-        desc: "Phân khúc chiếm tỷ trọng lớn nhất Seattle (41.5%), tập trung các căn nhà độc lập 1–2 tầng tiêu chuẩn gần trục giao thông chính, thanh khoản cao."
+        photos: [
+          "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=600&q=80"
+        ],
+        desc: "Phân khúc chiếm tỷ trọng lớn nhất Seattle (41.5%), tập trung các căn nhà độc lập 1–2 tầng tiêu chuẩn gần trục giao thông chính."
       },
       {
         cluster: 2,
@@ -1201,11 +1294,12 @@
         price_mean: 541477,
         sqft_median: 2150,
         price_per_sqft: 257.74,
-        beds: "4 bd",
-        baths: "2.5 ba",
         grade: 8,
         top_zipcodes: "98052, 98103, 98023",
-        photo: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=700&q=80",
+        photos: [
+          "https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1598228723793-52759bba239c?auto=format&fit=crop&w=600&q=80"
+        ],
         desc: "Khu dân cư gia đình gần trung tâm công nghệ Microsoft (Redmond), diện tích sân vườn rộng, chất lượng xây dựng Grade 8."
       },
       {
@@ -1220,11 +1314,12 @@
         price_mean: 774099,
         sqft_median: 2820,
         price_per_sqft: 275.61,
-        beds: "4 bd",
-        baths: "3 ba",
         grade: 9,
         top_zipcodes: "98074, 98052, 98006",
-        photo: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=700&q=80",
+        photos: [
+          "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=600&q=80"
+        ],
         desc: "Khu nhà ở cao cấp dành cho chuyên gia, thiết kế kiến trúc hiện đại (Grade 9), mật độ cây xanh cao và hạ tầng đồng bộ."
       },
       {
@@ -1239,11 +1334,12 @@
         price_mean: 301038,
         sqft_median: 1120,
         price_per_sqft: 270.93,
-        beds: "2–3 bd",
-        baths: "1.5 ba",
         grade: 6,
         top_zipcodes: "98118, 98168, 98106",
-        photo: "https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&w=700&q=80",
+        photos: [
+          "https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1480074568708-e7b720bb3f09?auto=format&fit=crop&w=600&q=80"
+        ],
         desc: "Phân khúc giá tiếp cận tốt nhất thị trường (~$275k), diện tích gọn ~1,120 sqft, phù hợp người mua lần đầu hoặc đầu tư cho thuê."
       },
       {
@@ -1258,11 +1354,12 @@
         price_mean: 1072845,
         sqft_median: 3450,
         price_per_sqft: 307.09,
-        beds: "5 bd",
-        baths: "3.5 ba",
         grade: 10,
         top_zipcodes: "98075, 98074, 98006",
-        photo: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=700&q=80",
+        photos: [
+          "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=600&q=80"
+        ],
         desc: "Các dinh thự diện tích lớn trên đồi cao có tầm nhìn thoáng, nội thất thiết kế riêng (Grade 10), giá trung bình trên $1.07M USD."
       },
       {
@@ -1277,17 +1374,18 @@
         price_mean: 1481901,
         sqft_median: 4260,
         price_per_sqft: 341.93,
-        beds: "5+ bd",
-        baths: "4.5 ba",
         grade: 11,
         top_zipcodes: "98004, 98040, 98006",
-        photo: "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=700&q=80",
+        photos: [
+          "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=600&q=80"
+        ],
         desc: "Khu biệt thự đắt đỏ nhất bang Washington, diện tích sàn trên 4,200 sqft, đơn giá trung bình cao nhất toàn vùng ($342/sqft)."
       },
       {
         cluster: -1,
         badgeText: "Cụm -1 • Cá Biệt (Outliers)",
-        badgeColor: "#b91c1c",
+        badgeColor: "#dc2626",
         segment_name: "Bất Động Sản Cá Biệt / Ngoại Lai (DBSCAN Outliers)",
         area_title: "Vùng Rìa Ven Hồ & Bất Động Sản Phi Chuẩn",
         count: 388,
@@ -1296,14 +1394,240 @@
         price_mean: 868931,
         sqft_median: 1070,
         price_per_sqft: 327.44,
-        beds: "2–6 bd",
-        baths: "1–5 ba",
         grade: 7,
         top_zipcodes: "98056, 98006, 98055",
-        photo: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=700&q=80",
+        photos: [
+          "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=600&q=80"
+        ],
         desc: "Nhóm 388 căn có giá hoặc vị trí lệch khỏi quy luật cụm (chứa cả dinh thự mặt hồ $7M lẫn nhà diện tích nhỏ trên đất rộng), cần thẩm định riêng."
       }
     ];
+
+    const CLUSTER_MAP_OBJ = {};
+    REAL_ESTATE_CLUSTERS.forEach(c => { CLUSTER_MAP_OBJ[c.cluster] = c; });
+
+    // Khởi tạo Bản đồ Leaflet tương tác
+    let map = null;
+    let markersLayer = null;
+    let markerRefs = {};
+
+    function initLeafletMap() {
+      map = L.map('leafletMap', {
+        center: [47.565, -122.21],
+        zoom: 10,
+        preferCanvas: true
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        maxZoom: 18
+      }).addTo(map);
+
+      markersLayer = L.layerGroup().addTo(map);
+    }
+
+    function selectClusterQuick(clusterVal) {
+      document.getElementById('reClusterSelect').value = String(clusterVal);
+      applyMapAndListFilter(true);
+    }
+
+    function resetAllFilters() {
+      document.getElementById('reSearchInput').value = '';
+      document.getElementById('reClusterSelect').value = 'ALL';
+      document.getElementById('rePriceSelect').value = 'ALL';
+      document.getElementById('reBedsSelect').value = 'ALL';
+      applyMapAndListFilter(true);
+    }
+
+    function applyMapAndListFilter(shouldFitBounds = false) {
+      const q = (document.getElementById('reSearchInput').value || '').trim().toLowerCase();
+      const clusterSel = document.getElementById('reClusterSelect').value;
+      const priceSel = document.getElementById('rePriceSelect').value;
+      const bedsSel = document.getElementById('reBedsSelect').value;
+
+      // Đồng bộ trạng thái nút chip nổi trên bản đồ
+      document.querySelectorAll('#mapQuickChips .map-chip').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-cluster') === clusterSel);
+      });
+
+      // Lọc danh sách 1,050 căn nhà thực tế
+      const matchedHouses = SAMPLED_HOUSES.filter(h => {
+        if (clusterSel !== 'ALL' && String(h.c) !== clusterSel) return false;
+        if (priceSel === 'UNDER_350' && h.p >= 350000) return false;
+        if (priceSel === '350_600' && (h.p < 350000 || h.p > 600000)) return false;
+        if (priceSel === '600_1000' && (h.p < 600000 || h.p > 1000000)) return false;
+        if (priceSel === 'OVER_1000' && h.p <= 1000000) return false;
+        if (bedsSel !== 'ALL' && h.bd < parseInt(bedsSel, 10)) return false;
+        if (q) {
+          const cInfo = CLUSTER_MAP_OBJ[h.c] || {};
+          const text = (h.z + ' ' + (cInfo.area_title || '') + ' ' + (cInfo.segment_name || '')).toLowerCase();
+          if (!text.includes(q)) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('mapPointCount').textContent = matchedHouses.length.toLocaleString('en-US');
+
+      // 1. Vẽ lại các điểm trên Bản đồ Leaflet
+      markersLayer.clearLayers();
+      markerRefs = {};
+      const latLngs = [];
+
+      matchedHouses.forEach((h, idx) => {
+        const cInfo = CLUSTER_MAP_OBJ[h.c] || REAL_ESTATE_CLUSTERS[0];
+        const pps = Math.round(h.p / Math.max(1, h.s));
+        const marker = L.circleMarker([h.lat, h.lng], {
+          radius: clusterSel === 'ALL' ? 5 : 6.5,
+          fillColor: cInfo.badgeColor,
+          color: '#ffffff',
+          weight: 1.2,
+          opacity: 1,
+          fillOpacity: 0.88
+        });
+
+        const popupHtml = `
+          <div style="font-family:'Inter',sans-serif; min-width:210px; padding:2px;">
+            <div style="display:inline-block; background:${cInfo.badgeColor}; color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:3px; text-transform:uppercase; margin-bottom:5px;">
+              ${cInfo.badgeText}
+            </div>
+            <div style="font-size:17px; font-weight:800; color:#111827; margin-bottom:3px;">
+              $${h.p.toLocaleString('en-US')}
+              <span style="font-size:11px; font-weight:600; color:#6b7280;">($${pps}/sqft)</span>
+            </div>
+            <div style="font-size:12px; color:#374151; margin-bottom:4px;">
+              <strong>${h.bd} bd</strong> | <strong>${h.ba} ba</strong> | <strong>${h.s.toLocaleString('en-US')} sqft</strong> | Grade ${h.g}
+            </div>
+            <div style="font-size:11px; color:#6b7280; margin-bottom:8px;">
+              Khu vực: ${cInfo.area_title} • Zipcode: <strong>${h.z}</strong>
+            </div>
+            <button onclick="openEstimatorFromHouse(${h.c}, ${h.s}, ${h.bd}, ${h.ba}, ${h.g}, ${h.p})"
+              style="width:100%; padding:5px 8px; background:#006aff; color:#fff; border:none; border-radius:4px; font-weight:600; font-size:11px; cursor:pointer;">
+              Định giá & Thẩm định căn này →
+            </button>
+          </div>
+        `;
+        marker.bindPopup(popupHtml);
+        marker.addTo(markersLayer);
+        markerRefs[idx] = marker;
+        latLngs.push([h.lat, h.lng]);
+      });
+
+      if (shouldFitBounds && latLngs.length > 0 && map) {
+        const bounds = L.latLngBounds(latLngs);
+        map.flyToBounds(bounds, { padding: [35, 35], maxZoom: 13, duration: 0.65 });
+      }
+
+      // 2. Cập nhật hộp thông tin Cụm đang chọn
+      const highlightBox = document.getElementById('clusterHighlightBox');
+      if (clusterSel === 'ALL') {
+        highlightBox.style.borderLeftColor = '#006aff';
+        highlightBox.innerHTML = `
+          <div class="cluster-highlight-title">
+            <span>Toàn cảnh 7 Phân khúc Bất động sản Seattle (DBSCAN)</span>
+            <span style="font-size:0.76rem; color:#006aff;">21,436 căn toàn thị trường</span>
+          </div>
+          <p class="cluster-highlight-desc">
+            Chọn một cụm trên thanh nút bản đồ (Cụm 0 → Cụm 5 hoặc Outliers -1) để bản đồ chỉ hiển thị riêng các căn nhà thuộc phân khúc đó và tự động phóng to vào vùng tương ứng.
+          </p>
+        `;
+      } else {
+        const cInfo = CLUSTER_MAP_OBJ[parseInt(clusterSel, 10)];
+        highlightBox.style.borderLeftColor = cInfo.badgeColor;
+        highlightBox.innerHTML = `
+          <div class="cluster-highlight-title">
+            <span>${cInfo.badgeText}: ${cInfo.segment_name}</span>
+            <span style="font-size:0.78rem; color:${cInfo.badgeColor}; font-weight:700;">Median: $${cInfo.price_median.toLocaleString('en-US')}</span>
+          </div>
+          <p class="cluster-highlight-desc">
+            <strong>Khu vực:</strong> ${cInfo.area_title} (Zipcode: ${cInfo.top_zipcodes}) • <strong>Quy mô:</strong> ${cInfo.count.toLocaleString('en-US')} căn (${cInfo.market_share_pct}% thị trường). ${cInfo.desc}
+          </p>
+        `;
+      }
+
+      // 3. Hiển thị tối đa 24 thẻ căn nhà cụ thể ở cột bên phải để cuộn mượt
+      const displayHouses = matchedHouses.slice(0, 24);
+      document.getElementById('listingsHeadingTitle').textContent =
+        clusterSel === 'ALL'
+          ? `Danh Sách Nhà Đất Khớp Bộ Lọc (${matchedHouses.length} căn trên bản đồ)`
+          : `Các Căn Nhà Thuộc ${CLUSTER_MAP_OBJ[parseInt(clusterSel, 10)].badgeText} (${matchedHouses.length} căn)`;
+
+      const container = document.getElementById('propertyCardsContainer');
+      if (displayHouses.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: span 2; background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:2.5rem; text-align:center; color:#6b7280;">
+            Không tìm thấy căn nhà nào khớp điều kiện lọc. Hãy bấm "Đặt lại bản đồ".
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = displayHouses.map((h, i) => {
+        const cInfo = CLUSTER_MAP_OBJ[h.c] || REAL_ESTATE_CLUSTERS[0];
+        const pps = Math.round(h.p / Math.max(1, h.s));
+        const photoUrl = cInfo.photos[i % cInfo.photos.length];
+        return `
+          <div class="property-card" onclick="focusHouseOnMap(${i}, ${h.lat}, ${h.lng})">
+            <div class="property-photo" style="background-image: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.02) 50%, rgba(0,0,0,0.5) 100%), url('${photoUrl}');">
+              <div class="photo-badges">
+                <span class="cluster-pill" style="background: ${cInfo.badgeColor};">${cInfo.badgeText}</span>
+                <span class="pps-pill">$${pps}/sqft</span>
+              </div>
+              <span class="photo-bottom-tag">Zipcode ${h.z} • (${h.lat}, ${h.lng})</span>
+            </div>
+
+            <div class="property-body">
+              <div class="property-price-row">
+                <span class="property-price">$${h.p.toLocaleString('en-US')}</span>
+                <span class="property-mean-tag">TB cụm: $${cInfo.price_median.toLocaleString('en-US')}</span>
+              </div>
+
+              <div class="property-specs">
+                <span><strong>${h.bd} bd</strong></span>
+                <span class="spec-divider">|</span>
+                <span><strong>${h.ba} ba</strong></span>
+                <span class="spec-divider">|</span>
+                <span><strong>${h.s.toLocaleString('en-US')}</strong> sqft</span>
+                <span class="spec-divider">|</span>
+                <span>Grade ${h.g}</span>
+              </div>
+
+              <h3 class="property-title">${cInfo.area_title}</h3>
+              <div class="property-zip">${cInfo.segment_name}</div>
+
+              <div class="card-actions-row">
+                <button class="property-btn secondary" onclick="event.stopPropagation(); focusHouseOnMap(${i}, ${h.lat}, ${h.lng})">
+                  Xem trên bản đồ
+                </button>
+                <button class="property-btn" onclick="event.stopPropagation(); openEstimatorFromHouse(${h.c}, ${h.s}, ${h.bd}, ${h.ba}, ${h.g}, ${h.p})">
+                  Định giá căn này
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function focusHouseOnMap(markerIndex, lat, lng) {
+      if (!map) return;
+      map.flyTo([lat, lng], 14, { duration: 0.6 });
+      const m = markerRefs[markerIndex];
+      if (m) {
+        setTimeout(() => m.openPopup(), 400);
+      }
+    }
+
+    function openEstimatorFromHouse(clusterId, sqft, beds, baths, grade, price) {
+      document.getElementById('estCluster').value = String(clusterId);
+      document.getElementById('estSqft').value = sqft;
+      document.getElementById('estBeds').value = String(Math.min(5, Math.max(2, beds)));
+      document.getElementById('estBaths').value = baths >= 3 ? '3.5' : (baths >= 2.5 ? '2.5' : (baths >= 2 ? '2' : '1'));
+      document.getElementById('estGrade').value = String(Math.min(11, Math.max(6, grade)));
+      document.getElementById('estAsking').value = price;
+      calculateHomeValue();
+      openView('estimator');
+    }
 
     function openView(viewName) {
       document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
@@ -1312,76 +1636,10 @@
       document.getElementById('nav-' + viewName).classList.add('active');
 
       document.getElementById('topFilterBar').style.display = (viewName === 'explorer') ? 'block' : 'none';
+      if (viewName === 'explorer' && map) {
+        setTimeout(() => map.invalidateSize(), 100);
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function filterListings() {
-      const q = (document.getElementById('reSearchInput').value || '').trim().toLowerCase();
-      const clusterSel = document.getElementById('reClusterSelect').value;
-      const priceSel = document.getElementById('rePriceSelect').value;
-
-      const filtered = REAL_ESTATE_CLUSTERS.filter(item => {
-        if (clusterSel !== 'ALL' && String(item.cluster) !== clusterSel) return false;
-        if (priceSel === 'UNDER_400' && item.price_median >= 400000) return false;
-        if (priceSel === '400_800' && (item.price_median < 400000 || item.price_median > 800000)) return false;
-        if (priceSel === 'OVER_800' && item.price_median <= 800000) return false;
-        if (q) {
-          const haystack = (item.segment_name + ' ' + item.area_title + ' ' + item.top_zipcodes + ' ' + item.desc).toLowerCase();
-          if (!haystack.includes(q)) return false;
-        }
-        return true;
-      });
-
-      const totalHouses = filtered.reduce((acc, c) => acc + c.count, 0);
-      document.getElementById('listingsCountText').innerHTML =
-        `Hiển thị <strong>${filtered.length} phân khúc</strong> (${totalHouses.toLocaleString('en-US')} bất động sản)`;
-
-      const container = document.getElementById('propertyCardsContainer');
-      container.innerHTML = filtered.map(item => `
-        <div class="property-card">
-          <div class="property-photo" style="background-image: linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.02) 50%, rgba(0,0,0,0.48) 100%), url('${item.photo}');">
-            <div class="photo-badges">
-              <span class="cluster-pill" style="background: ${item.badgeColor};">${item.badgeText}</span>
-              <span class="pps-pill">$${item.price_per_sqft}/sqft</span>
-            </div>
-            <span class="photo-bottom-tag">${item.count.toLocaleString('en-US')} căn (${item.market_share_pct}%)</span>
-          </div>
-
-          <div class="property-body">
-            <div class="property-price-row">
-              <span class="property-price">$${item.price_median.toLocaleString('en-US')}</span>
-              <span class="property-mean-tag">TB: $${item.price_mean.toLocaleString('en-US')}</span>
-            </div>
-
-            <div class="property-specs">
-              <span><strong>${item.beds}</strong></span>
-              <span class="spec-divider">|</span>
-              <span><strong>${item.baths}</strong></span>
-              <span class="spec-divider">|</span>
-              <span><strong>${item.sqft_median.toLocaleString('en-US')}</strong> sqft</span>
-              <span class="spec-divider">|</span>
-              <span>Grade ${item.grade}</span>
-            </div>
-
-            <h3 class="property-title">${item.area_title}</h3>
-            <div class="property-zip">Zipcode: ${item.top_zipcodes}</div>
-            <p class="property-location">${item.desc}</p>
-
-            <button class="property-btn" onclick="openEstimatorForCluster('${item.cluster}', ${item.sqft_median}, ${item.grade}, ${item.price_median})">
-              Định giá bất động sản khu vực này →
-            </button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function openEstimatorForCluster(clusterId, sqft, grade, medianPrice) {
-      document.getElementById('estCluster').value = String(clusterId);
-      document.getElementById('estSqft').value = sqft;
-      document.getElementById('estGrade').value = String(grade);
-      document.getElementById('estAsking').value = medianPrice;
-      calculateHomeValue();
-      openView('estimator');
     }
 
     function setEstimatorPreset(clusterId, sqft, beds, baths, grade, asking) {
@@ -1402,7 +1660,7 @@
       const baths = parseFloat(document.getElementById('estBaths').value) || 2;
       const asking = parseFloat(document.getElementById('estAsking').value) || 450000;
 
-      const clusterObj = REAL_ESTATE_CLUSTERS.find(c => c.cluster === clusterId) || REAL_ESTATE_CLUSTERS[0];
+      const clusterObj = CLUSTER_MAP_OBJ[clusterId] || REAL_ESTATE_CLUSTERS[0];
 
       const gradeFactor = 1 + (grade - clusterObj.grade) * 0.085;
       const roomBonus = (beds - 3) * 8500 + (baths - 2) * 11000;
@@ -1450,6 +1708,11 @@
       }
     }
 
+    function filterMapToClusterFromTable(clusterId) {
+      openView('explorer');
+      selectClusterQuick(String(clusterId));
+    }
+
     function renderMarketReportTable() {
       const tbody = document.getElementById('marketReportTableBody');
       tbody.innerHTML = REAL_ESTATE_CLUSTERS.map(c => `
@@ -1462,6 +1725,11 @@
           <td>${c.sqft_median.toLocaleString('en-US')} sqft (Grade ${c.grade})</td>
           <td style="font-weight:700; color:#006aff;">$${c.price_per_sqft}/sqft</td>
           <td>${c.top_zipcodes}</td>
+          <td style="text-align: right;">
+            <button class="preset-btn" onclick="filterMapToClusterFromTable(${c.cluster})">
+              Lọc trên bản đồ →
+            </button>
+          </td>
         </tr>
       `).join('');
     }
@@ -1526,7 +1794,9 @@
       a.click();
     }
 
-    filterListings();
+    // Khởi chạy toàn bộ ứng dụng
+    initLeafletMap();
+    applyMapAndListFilter(false);
     calculateHomeValue();
     renderMarketReportTable();
     initMarketCharts();
